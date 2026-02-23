@@ -5,7 +5,7 @@
     📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
     ========================================
     
-    VERSION ACTUELLE : v1.1.5
+    VERSION ACTUELLE : v1.1.6
     DATE : 24 Février 2026
     
     ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
@@ -17,7 +17,6 @@
        Sinon l'app restera sur l'ancienne version !
     
     HISTORIQUE DES VERSIONS :
-    - v1.1.4 (24/02/2026) : Fix Bug Affichage Version et Maj version
     - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
     - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
     - v1.0.0 (23/02/2026) : Version initiale
@@ -89,6 +88,63 @@
         body.dark-mode .info-box {
             background: #2d3748;
             border-left-color: #4299e1;
+            color: #e0e0e0;
+        }
+
+        /* ===== CORRECTIONS MODE SOMBRE ===== */
+
+        /* Texte "TOTAL AUCHAN / LECLERC" et autres totaux */
+        body.dark-mode .total-row {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .total-row.main {
+            color: #ffffff;
+            border-top-color: #555;
+        }
+
+        body.dark-mode .total-row.savings {
+            color: #2ecc71;
+        }
+
+        /* Titres et textes dans la zone info-box (comment utiliser les offres promo) */
+        body.dark-mode .info-box strong {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .info-box ul {
+            color: #c0c0c0;
+        }
+
+        /* Bandeau de version en bas */
+        body.dark-mode .version-banner {
+            color: #aaa;
+            border-top-color: #444;
+        }
+
+        /* Modales en mode sombre */
+        body.dark-mode .modal-content {
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-header {
+            border-bottom-color: #444;
+        }
+
+        body.dark-mode .modal-header h2 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode p,
+        body.dark-mode label {
+            color: #e0e0e0;
+        }
+
+        /* Gestion des magasins */
+        body.dark-mode .store-manager-item {
+            background: #2d2d2d;
+            border-color: #3a3a3a;
             color: #e0e0e0;
         }
 
@@ -795,7 +851,8 @@
         <!-- Bandeau de version -->
         <div class="version-banner">
             <span class="version-number">v1.1.5</span>
-            <strong>Dernière mise à jour :</strong> Fix auto-update + Gestion des caches améliorée + Fix Bug Affichage Version et Maj version + Fig Bug Service_worker
+
+            <strong>Dernière mise à jour :</strong> Fix auto-update + Gestion des caches améliorée + Fix Bug Affichage Version et Maj version + Fig Bug Service_worker + Fix Bug Texte mode sombre
         </div>
     </div>
 
@@ -1046,7 +1103,7 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.1.5';
+        const APP_VERSION = 'v1.1.6';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1098,7 +1155,7 @@
                         console.log('✅ Caches supprimés, nouvelle version installée');
                         
                         // Réenregistrer le service worker
-                        navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                        navigator.serviceWorker.register('service-worker.js')
                             .then(reg => {
                                 console.log('✅ Nouveau Service Worker enregistré');
                                 // Forcer le rechargement après 1 seconde
@@ -1109,7 +1166,7 @@
                     });
                 } else {
                     // Version identique, enregistrement normal
-                    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                    navigator.serviceWorker.register('service-worker.js')
                         .then(reg => console.log('✅ Service Worker enregistré'))
                         .catch(err => console.log('❌ Erreur Service Worker:', err));
                 }
