@@ -1,7 +1,7 @@
 // ⚠️ IMPORTANT : Incrémenter cette version à CHAQUE mise à jour !
 // Cela force le navigateur à télécharger la nouvelle version
 // Format : 'comparateur-prix-vX.X.X' (doit correspondre à la version de l'app)
-const CACHE_NAME = 'comparateur-prix-v1.1.1';
+const CACHE_NAME = 'comparateur-prix-v1.1.2';
 const urlsToCache = [
   './comparateur_prix.html',
   './manifest.json'
