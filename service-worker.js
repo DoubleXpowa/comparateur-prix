@@ -38,6 +38,18 @@ self.addEventListener('activate', (event) => {
 
 // Interception des requêtes (stratégie Cache First)
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // ⚠️ Ne jamais intercepter le service worker lui-même
+  if (url.pathname.endsWith('service-worker.js')) {
+    return;
+  }
+
+  // Ne traiter que les requêtes GET
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -47,27 +59,31 @@ self.addEventListener('fetch', (event) => {
         }
 
         // Sinon, faire la requête réseau
-        return fetch(event.request).then((response) => {
-          // Ne pas mettre en cache les requêtes non-GET
-          if (!response || response.status !== 200 || event.request.method !== 'GET') {
-            return response;
+        return fetch(event.request).then((networkResponse) => {
+          // Ne pas mettre en cache les réponses invalides
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
           }
 
-          // Cloner la réponse
-          const responseToCache = response.clone();
+          // ⚠️ Ne pas mettre en cache le service worker lui-même
+          if (url.pathname.endsWith('service-worker.js')) {
+            return networkResponse;
+          }
+
+          // Cloner la réponse avant de la mettre en cache
+          const responseToCache = networkResponse.clone();
 
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
             });
 
-          return response;
+          return networkResponse;
         });
       })
       .catch(() => {
-        // En cas d'échec, retourner une page hors ligne de base
+        // En cas d'échec réseau, retourner la page principale depuis le cache
         return caches.match('./comparateur_prix.html');
       })
   );
 });
-
