@@ -1,5 +1,25 @@
 <!DOCTYPE html>
 <html lang="fr">
+<!--
+    ========================================
+    📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
+    ========================================
+    
+    VERSION ACTUELLE : v1.1.0
+    DATE : 24 Février 2026
+    
+    ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
+    1. Incrémenter le numéro de version ci-dessus
+    2. Mettre à jour le bandeau de version en bas de page (ligne ~635)
+       Format : <span class="version-number">vX.X.X</span>
+       + Description des changements
+    
+    HISTORIQUE DES VERSIONS :
+    - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
+    - v1.0.0 (23/02/2026) : Version initiale
+    
+    ========================================
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -536,6 +556,127 @@
                 padding: 6px;
                 font-size: 12px;
             }
+
+            /* Responsive control bar pour mobile */
+            .control-bar {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .control-group {
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .icon-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                white-space: nowrap;
+                flex: 1;
+                min-width: 0;
+                max-width: 140px;
+            }
+
+            .toggle-switch {
+                width: 50px;
+                height: 26px;
+            }
+
+            .toggle-slider {
+                width: 20px;
+                height: 20px;
+            }
+
+            .toggle-switch.active .toggle-slider {
+                transform: translateX(24px);
+            }
+
+            /* Labels plus petits sur mobile */
+            .control-group span {
+                font-size: 12px;
+                white-space: nowrap;
+            }
+        }
+
+        /* Pour très petits écrans (téléphones en portrait) */
+        @media (max-width: 480px) {
+            .control-bar {
+                padding: 8px;
+            }
+
+            .icon-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+                max-width: 110px;
+            }
+
+            .control-group {
+                gap: 6px;
+            }
+
+            .control-group span {
+                font-size: 11px;
+            }
+
+            /* Empêcher le débordement sur petits écrans */
+            .store-section {
+                padding: 15px 10px;
+            }
+
+            .store-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .store-header > div {
+                width: 100%;
+            }
+
+            .add-btn, .clear-btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+        }
+
+        /* Bandeau de version en bas */
+        .version-banner {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            margin-top: 30px;
+            border-radius: 10px 10px 0 0;
+        }
+
+        body.dark-mode .version-banner {
+            background: rgba(30, 30, 30, 0.9);
+            color: #aaa;
+            border-top-color: #444;
+        }
+
+        .version-banner strong {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        body.dark-mode .version-banner strong {
+            color: #8b9eff;
+        }
+
+        .version-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-right: 8px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -645,6 +786,12 @@
                     <button class="icon-btn danger" onclick="confirmYes()">Confirmer</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Bandeau de version -->
+        <div class="version-banner">
+            <span class="version-number">v1.1.0</span>
+            <strong>Dernière mise à jour :</strong> Mode sombre + Historique + Gestion magasins + UI mobile optimisée
         </div>
     </div>
 
@@ -1351,6 +1498,3 @@
     </script>
 </body>
 </html>
-
-
-Mise à jour - Mode sombre + Historique + Gestion magasins
