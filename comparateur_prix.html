@@ -1,29 +1,28 @@
+<!--
++==================================================================+
+|        ✏️  ZONE DE MODIFICATION - VERSION DE L'APPLICATION        |
+|   Modifiez UNIQUEMENT ces 2 lignes à chaque mise à jour :        |
+|                                                                  |
+|   VERSION    : v1.1.7                                            |
+|   DESCRIPTIF : Fix mode sombre + updateViaCache none             |
+|                                                                  |
+|   ⚠️ Mettez aussi CACHE_NAME dans service-worker.js (ligne 4)    |
++------------------------------------------------------------------+
+|                    HISTORIQUE DES VERSIONS                       |
+|   v1.1.3 (24/02) : Fix mode sombre + updateViaCache none         |
+|   v1.1.2 (24/02) : Fix auto-update + Gestion des caches         |
+|   v1.1.0 (24/02) : Mode sombre + Historique + Gestion magasins  |
+|   v1.0.0 (23/02) : Version initiale                              |
++==================================================================+
+-->
 <!DOCTYPE html>
 <html lang="fr">
-<!--
-    ========================================
-    📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
-    ========================================
-    
-    VERSION ACTUELLE : v1.1.6
-    DATE : 24 Février 2026
-    
-    ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
-    1. Incrémenter le numéro de version ci-dessus ET dans APP_VERSION (ligne ~1070)
-    2. Mettre à jour le bandeau de version en bas de page (ligne ~793)
-       Format : <span class="version-number">vX.X.X</span>
-       + Description des changements
-    3. ⚠️ CRUCIAL : Mettre à jour le CACHE_NAME dans service-worker.js (ligne 4)
-       Sinon l'app restera sur l'ancienne version !
-    
-    HISTORIQUE DES VERSIONS :
-    - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
-    - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
-    - v1.0.0 (23/02/2026) : Version initiale
-    
-    ========================================
--->
 <head>
+    <!-- ================================================================ -->
+    <!-- ✏️ MODIFIEZ CES 2 LIGNES UNIQUEMENT POUR CHANGER LA VERSION      -->
+    <meta name="app-version"      content="v1.1.7">
+    <meta name="app-version-desc" content="Fix mode sombre + Facilitation mise a jour">
+    <!-- ================================================================ -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Comparez vos prix entre Auchan et Leclerc en temps réel">
@@ -848,11 +847,10 @@
             </div>
         </div>
 
-        <!-- Bandeau de version -->
+        <!-- Bandeau de version — mis à jour automatiquement depuis les balises meta -->
         <div class="version-banner">
-            <span class="version-number">v1.1.6</span>
-
-            <strong>Dernière mise à jour :</strong> Fix auto-update + Gestion des caches améliorée + Fix Bug Affichage Version et Maj version + Fig Bug Service_worker + Fix Bug Texte mode sombre
+            <span class="version-number" id="version-display"></span>
+            <strong>Dernière mise à jour :</strong> <span id="version-desc-display"></span>
         </div>
     </div>
 
@@ -1103,7 +1101,8 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.1.6';
+        // ✅ Version lue automatiquement depuis la balise <meta name="app-version"> dans le <head>
+        const APP_VERSION = document.querySelector('meta[name="app-version"]').getAttribute('content');
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1597,6 +1596,17 @@
 
         // ============ DÉMARRAGE DE L'APPLICATION ============
         // Appeler init() APRÈS que toutes les fonctions soient définies
+
+        // ✅ Injection automatique de la version dans le bandeau
+        (function() {
+            const version = document.querySelector('meta[name="app-version"]').getAttribute('content');
+            const desc    = document.querySelector('meta[name="app-version-desc"]').getAttribute('content');
+            const vEl = document.getElementById('version-display');
+            const dEl = document.getElementById('version-desc-display');
+            if (vEl) vEl.textContent = version;
+            if (dEl) dEl.textContent = desc;
+        })();
+
         init();
         
     </script>
