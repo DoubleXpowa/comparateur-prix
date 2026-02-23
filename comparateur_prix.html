@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Comparez vos prix entre Auchan et Leclerc en temps réel">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Comparateur Prix">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <title>Comparateur Prix - Auchan vs Leclerc</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            transition: background 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body.dark-mode .container {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .store-section {
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode th {
+            background: #2d2d2d;
+        }
+
+        body.dark-mode td {
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        body.dark-mode input {
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border-color: #3a3a3a;
+        }
+
+        body.dark-mode .totals {
+            background: #2d2d2d;
+        }
+
+        body.dark-mode .grand-total {
+            background: linear-gradient(135deg, #d68910 0%, #c76d1f 100%);
+        }
+
+        body.dark-mode .info-box {
+            background: #2d3748;
+            border-left-color: #4299e1;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin: 20px 0;
+            font-size: 24px;
+        }
+
+        .store-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .store-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .store-title {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .store-title.auchan {
+            color: #e74c3c;
+        }
+
+        .store-title.leclerc {
+            color: #3498db;
+        }
+
+        .store-title[contenteditable="true"] {
+            cursor: text;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .store-title[contenteditable="true"]:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .store-title[contenteditable="true"]:focus {
+            outline: 2px solid #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .add-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .clear-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .clear-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .control-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        body.dark-mode .control-bar {
+            background: #1e1e1e;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .icon-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .icon-btn.danger {
+            background: #e74c3c;
+        }
+
+        .icon-btn.danger:hover {
+            background: #c0392b;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #ccc;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        body.dark-mode .modal-content {
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        body.dark-mode .close-btn:hover {
+            color: #e0e0e0;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        body.dark-mode .history-item {
+            background: #2d2d2d;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .history-date {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .history-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #27ae60;
+        }
+
+        .store-manager-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        body.dark-mode .store-manager-item {
+            background: #2d2d2d;
+        }
+
+        .add-store-form {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e8f4f8;
+            border-radius: 10px;
+        }
+
+        body.dark-mode .add-store-form {
+            background: #2d3748;
+        }
+
+        .add-store-form input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .add-store-form select {
+            background: white;
+            font-family: inherit;
+        }
+
+        body.dark-mode .add-store-form select {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        .add-store-form select option {
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+
+        .totals {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 16px;
+        }
+
+        .total-row.main {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            border-top: 2px solid #34495e;
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .total-row.savings {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .grand-total {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .grand-total h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .grand-total .amount {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .store-title {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 4px;
+            }
+
+            input {
+                padding: 6px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 Comparateur de Prix</h1>
+
+        <!-- Barre de contrôle -->
+        <div class="control-bar">
+            <div class="control-group">
+                <button class="icon-btn" onclick="openHistory()">
+                    📋 Historique
+                </button>
+                <button class="icon-btn" onclick="saveCurrentList()">
+                    💾 Sauvegarder
+                </button>
+                <button class="icon-btn" onclick="openStoreManager()">
+                    🏪 Gérer magasins
+                </button>
+            </div>
+            <div class="control-group">
+                <span style="font-weight: bold; color: white;">🌙 Mode sombre</span>
+                <div class="toggle-switch" id="darkModeToggle" onclick="toggleDarkMode()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>📝 Comment utiliser les offres promo :</strong>
+            <ul>
+                <li><strong>1+1@50%</strong> = 1 acheté, le 2ème à -50%</li>
+                <li><strong>1+1@25%</strong> = 1 acheté, le 2ème à -25%</li>
+                <li><strong>2+1</strong> = 2 achetés, 1 offert</li>
+                <li>Fonctionne avec tous les % de 1 à 99 !</li>
+                <li><strong>⌨️ Appuyez sur Entrée</strong> pour ajouter une nouvelle ligne rapidement</li>
+                <li><strong>✏️ Cliquez sur les titres</strong> (Auchan/Leclerc) pour les renommer</li>
+                <li><strong>🗑️ Tout effacer</strong> pour réinitialiser une section avant vos courses</li>
+                <li><strong>💡 Réd. (%)</strong> : tapez directement le pourcentage (ex: 20 pour 20%)</li>
+            </ul>
+        </div>
+
+        <!-- Les sections des magasins seront générées dynamiquement ici -->
+
+        <!-- GRAND TOTAL -->
+        <div class="grand-total">
+            <h2>TOTAL COMBINÉ</h2>
+            <div class="amount" id="grand-total">0.00 €</div>
+            <div style="margin-top: 15px; font-size: 14px;">
+                Économies totales : <span id="total-savings" style="font-weight: bold;">0.00 €</span>
+            </div>
+        </div>
+
+        <!-- Modal Historique -->
+        <div class="modal" id="historyModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📋 Historique des courses</h2>
+                    <button class="close-btn" onclick="closeHistory()">&times;</button>
+                </div>
+                <div id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- Modal Gestion des magasins -->
+        <div class="modal" id="storeManagerModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🏪 Gérer les magasins</h2>
+                    <button class="close-btn" onclick="closeStoreManager()">&times;</button>
+                </div>
+                <div id="storesList"></div>
+                <div class="add-store-form">
+                    <h3>➕ Ajouter un magasin</h3>
+                    <input type="text" id="newStoreName" placeholder="Nom du magasin (ex: Carrefour)">
+                    
+                    <label style="display: block; margin: 15px 0 5px 0; font-weight: bold;">Choisir un emoji :</label>
+                    <select id="newStoreEmoji" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; cursor: pointer;">
+                        ${storeEmojis.map(e => `<option value="${e.emoji}">${e.emoji} ${e.name}</option>`).join('')}
+                    </select>
+                    
+                    <button class="add-btn" onclick="addNewStore()" style="width: 100%; margin-top: 15px;">Ajouter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Données initiales
+        const initialData = {
+            auchan: [
+                {article: "fraise", prix: 0.99, qte: 3, red_euro: 0, red_pct: 0, offre: ""},
+                {article: "peche", prix: 0.99, qte: 4, red_euro: 0, red_pct: 0, offre: ""},
+                {article: "eau", prix: 1.62, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
+            ],
+            leclerc: [
+                {article: "pain complet", prix: 3.18, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
+                {article: "croissant", prix: 3.15, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
+                {article: "kiri", prix: 2.99, qte: 2, red_euro: 0, red_pct: 0, offre: ""},
+            ]
+        };
+
+        // ============ GESTION DES MAGASINS ============
+        let stores = [];
+
+        // Emojis disponibles avec leurs couleurs associées
+        const storeEmojis = [
+            { emoji: '🔴', color: '#e74c3c', name: 'Rouge' },
+            { emoji: '🔵', color: '#3498db', name: 'Bleu' },
+            { emoji: '🟢', color: '#27ae60', name: 'Vert' },
+            { emoji: '🟡', color: '#f39c12', name: 'Jaune' },
+            { emoji: '🟠', color: '#e67e22', name: 'Orange' },
+            { emoji: '🟣', color: '#9b59b6', name: 'Violet' },
+            { emoji: '🟤', color: '#8b4513', name: 'Marron' },
+            { emoji: '⚫', color: '#2c3e50', name: 'Noir' },
+            { emoji: '⚪', color: '#95a5a6', name: 'Gris' },
+            { emoji: '🔶', color: '#e67e22', name: 'Losange Orange' },
+            { emoji: '🔷', color: '#3498db', name: 'Losange Bleu' },
+            { emoji: '💙', color: '#3498db', name: 'Cœur Bleu' },
+            { emoji: '💚', color: '#27ae60', name: 'Cœur Vert' },
+            { emoji: '💛', color: '#f39c12', name: 'Cœur Jaune' },
+            { emoji: '🧡', color: '#e67e22', name: 'Cœur Orange' },
+            { emoji: '💜', color: '#9b59b6', name: 'Cœur Violet' },
+            { emoji: '🏪', color: '#3498db', name: 'Supermarché' },
+            { emoji: '🛒', color: '#e74c3c', name: 'Caddie' },
+            { emoji: '🏬', color: '#9b59b6', name: 'Centre Commercial' },
+            { emoji: '🏢', color: '#34495e', name: 'Immeuble' }
+        ];
+
+        function getEmojiColor(emoji) {
+            const found = storeEmojis.find(e => e.emoji === emoji);
+            return found ? found.color : '#3498db';
+        }
+
+        // Calculer le prix avec offre promo
+        function calculatePrice(prix, qte, red_euro, red_pct, offre) {
+            prix = parseFloat(prix) || 0;
+            qte = parseInt(qte) || 0;
+            red_euro = parseFloat(red_euro) || 0;
+            red_pct = parseFloat(red_pct) || 0;
+            offre = (offre || "").trim().toUpperCase();
+
+            // Convertir le pourcentage (0-100) en décimal (0-1)
+            red_pct = red_pct / 100;
+
+            // Prix de base avec réductions simples
+            const prixBase = prix * qte;
+            const apresRedEuro = prixBase - (red_euro * qte);
+            const apresRedPct = apresRedEuro * (1 - red_pct);
+
+            // Si pas d'offre promo
+            if (!offre) {
+                return apresRedPct;
+            }
+
+            // Offre 2+1 (2 achetés, 1 offert)
+            if (offre === "2+1") {
+                if (qte >= 3) {
+                    return prix * (Math.floor(qte / 3) * 2 + (qte % 3));
+                }
+                return apresRedPct;
+            }
+
+            // Offre 1+1@X% (1 acheté, le 2ème à -X%)
+            if (offre.startsWith("1+1@")) {
+                const match = offre.match(/1\+1@(\d+)%?/);
+                if (match && qte >= 2) {
+                    const pct = parseInt(match[1]);
+                    const prixSecond = 1 - (pct / 100);
+                    return prix * (Math.floor(qte / 2) * (1 + prixSecond) + (qte % 2));
+                }
+                return apresRedPct;
+            }
+
+            return apresRedPct;
+        }
+
+        // Ajouter une ligne
+        function addRow(store) {
+            const tbody = document.getElementById(`${store}-body`);
+            const row = tbody.insertRow();
+            row.dataset.store = store; // Marquer la ligne avec le magasin
+            
+            // Détection mobile pour quantité vide par défaut
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const defaultQty = isMobile ? '' : '1';
+            
+            row.innerHTML = `
+                <td><input type="text" placeholder="Article" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="1" min="0" placeholder="1" value="${defaultQty}" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="1" min="0" max="100" placeholder="%" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="text" placeholder="1+1@50%" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td style="font-weight: bold; color: #27ae60;">0.00 €</td>
+                <td><button class="delete-btn" onclick="deleteRow(this)">✕</button></td>
+            `;
+            calculate();
+            // Focus sur le premier input de la nouvelle ligne
+            row.cells[0].querySelector('input').focus();
+        }
+
+        // Gérer la touche Entrée
+        function handleEnter(event, store) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addRow(store);
+            }
+        }
+
+        // Sauvegarder le nom du magasin
+        function saveTitle(store) {
+            const titleElement = document.getElementById(`${store}-title`);
+            const title = titleElement.textContent;
+            localStorage.setItem(`${store}-title`, title);
+            
+            // Mettre à jour le label du total
+            updateTotalLabel(store, title);
+        }
+
+        // Mettre à jour le label du total
+        function updateTotalLabel(store, title) {
+            const labelElement = document.getElementById(`${store}-total-label`);
+            // Extraire le nom sans l'emoji
+            const cleanTitle = title.replace(/🔴|🔵/g, '').trim().toUpperCase();
+            labelElement.textContent = `TOTAL ${cleanTitle} :`;
+        }
+
+        // Supprimer une ligne
+        function deleteRow(btn) {
+            btn.closest('tr').remove();
+            calculate();
+        }
+
+        // Effacer toutes les lignes d'une section
+        function clearAll(store) {
+            if (confirm(`Êtes-vous sûr de vouloir effacer tous les articles de ${store === 'auchan' ? 'Auchan' : 'Leclerc'} ?`)) {
+                const tbody = document.getElementById(`${store}-body`);
+                tbody.innerHTML = '';
+                calculate();
+            }
+        }
+
+        // Calculer tous les totaux
+        function calculate() {
+            let grandTotalAmount = 0;
+            let grandSavingsAmount = 0;
+
+            stores.filter(s => s.enabled).forEach(store => {
+                const tbody = document.getElementById(`${store.id}-body`);
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr');
+                
+                let totalBase = 0;
+                let totalFinal = 0;
+
+                rows.forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    const prix = parseFloat(inputs[1].value) || 0;
+                    const qte = parseInt(inputs[2].value) || 0;
+                    const red_euro = parseFloat(inputs[3].value) || 0;
+                    const red_pct = parseFloat(inputs[4].value) || 0;
+                    const offre = inputs[5].value;
+
+                    const prixLigne = calculatePrice(prix, qte, red_euro, red_pct, offre);
+                    row.cells[6].textContent = prixLigne.toFixed(2) + ' €';
+
+                    totalBase += prix * qte;
+                    totalFinal += prixLigne;
+                });
+
+                const savings = totalBase - totalFinal;
+
+                const baseEl = document.getElementById(`${store.id}-base`);
+                const savingsEl = document.getElementById(`${store.id}-savings`);
+                const totalEl = document.getElementById(`${store.id}-total`);
+
+                if (baseEl) baseEl.textContent = totalBase.toFixed(2) + ' €';
+                if (savingsEl) savingsEl.textContent = savings.toFixed(2) + ' €';
+                if (totalEl) totalEl.textContent = totalFinal.toFixed(2) + ' €';
+
+                grandTotalAmount += totalFinal;
+                grandSavingsAmount += savings;
+            });
+
+            document.getElementById('grand-total').textContent = grandTotalAmount.toFixed(2) + ' €';
+            document.getElementById('total-savings').textContent = grandSavingsAmount.toFixed(2) + ' €';
+        }
+
+        // Initialiser avec données d'exemple
+        function init() {
+            // Charger le mode sombre
+            loadDarkMode();
+
+            // Initialiser les magasins
+            initStores();
+
+            // Charger les titres sauvegardés
+            ['auchan', 'leclerc'].forEach(store => {
+                const savedTitle = localStorage.getItem(`${store}-title`);
+                const titleElement = document.getElementById(`${store}-title`);
+                if (titleElement && savedTitle) {
+                    titleElement.textContent = savedTitle;
+                    updateTotalLabel(store, savedTitle);
+                } else if (titleElement) {
+                    // Initialiser avec le titre par défaut
+                    const defaultTitle = titleElement.textContent;
+                    updateTotalLabel(store, defaultTitle);
+                }
+            });
+
+            ['auchan', 'leclerc'].forEach(store => {
+                const tbody = document.getElementById(`${store}-body`);
+                if (tbody && initialData[store]) {
+                    initialData[store].forEach(item => {
+                        addRow(store);
+                        const lastRow = tbody.lastElementChild;
+                        const inputs = lastRow.querySelectorAll('input');
+                        inputs[0].value = item.article;
+                        inputs[1].value = item.prix;
+                        inputs[2].value = item.qte;
+                        inputs[3].value = item.red_euro;
+                        inputs[4].value = item.red_pct;
+                        inputs[5].value = item.offre;
+                    });
+                }
+            });
+            calculate();
+        }
+
+        // ============ PWA FEATURES ============
+        
+        // ============ MODE SOMBRE ============
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const toggle = document.getElementById('darkModeToggle');
+            toggle.classList.toggle('active');
+            
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+        }
+
+        // Charger le mode sombre au démarrage
+        function loadDarkMode() {
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').classList.add('active');
+            }
+        }
+        
+        // Enregistrer le Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('✅ Service Worker enregistré'))
+                    .catch(err => console.log('❌ Erreur Service Worker:', err));
+            });
+        }
+
+        // Prompt d'installation PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallButton();
+        });
+
+        function showInstallButton() {
+            const installDiv = document.createElement('div');
+            installDiv.id = 'install-prompt';
+            installDiv.innerHTML = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; box-shadow: 0 -4px 20px rgba(0,0,0,0.3);">
+                    <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Installer l'application ?</p>
+                    <p style="margin: 0 0 15px 0; font-size: 14px;">Accédez rapidement depuis votre écran d'accueil</p>
+                    <button onclick="installApp()" style="background: white; color: #667eea; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; margin-right: 10px; font-size: 14px;">Installer</button>
+                    <button onclick="closeInstallPrompt()" style="background: transparent; color: white; border: 2px solid white; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 14px;">Plus tard</button>
+                </div>
+            `;
+            document.body.appendChild(installDiv);
+        }
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('✅ App installée');
+                    }
+                    deferredPrompt = null;
+                    closeInstallPrompt();
+                });
+            }
+        }
+
+        function closeInstallPrompt() {
+            const prompt = document.getElementById('install-prompt');
+            if (prompt) {
+                prompt.remove();
+            }
+        }
+
+        // Sauvegarder automatiquement toutes les données
+        function autoSave() {
+            const data = {};
+
+            stores.filter(s => s.enabled).forEach(store => {
+                data[store.id] = [];
+                const tbody = document.getElementById(`${store.id}-body`);
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    data[store.id].push({
+                        article: inputs[0].value,
+                        prix: inputs[1].value,
+                        qte: inputs[2].value,
+                        red_euro: inputs[3].value,
+                        red_pct: inputs[4].value,
+                        offre: inputs[5].value
+                    });
+                });
+            });
+
+            localStorage.setItem('comparateur-data', JSON.stringify(data));
+        }
+
+        // Auto-sauvegarder toutes les 5 secondes
+        setInterval(autoSave, 5000);
+
+        // Sauvegarder avant de quitter
+        window.addEventListener('beforeunload', autoSave);
+
+        // ============ HISTORIQUE DES COURSES ============
+        function saveCurrentList() {
+            const timestamp = new Date().toISOString();
+            const date = new Date().toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            let total = 0;
+            const data = {};
+
+            stores.filter(s => s.enabled).forEach(store => {
+                const totalEl = document.getElementById(`${store.id}-total`);
+                if (totalEl) {
+                    total += parseFloat(totalEl.textContent) || 0;
+                }
+
+                data[store.id] = [];
+                const tbody = document.getElementById(`${store.id}-body`);
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    if (inputs[0].value) { // Si article non vide
+                        data[store.id].push({
+                            article: inputs[0].value,
+                            prix: inputs[1].value,
+                            qte: inputs[2].value,
+                            red_euro: inputs[3].value,
+                            red_pct: inputs[4].value,
+                            offre: inputs[5].value
+                        });
+                    }
+                });
+            });
+
+            const listItem = {
+                timestamp,
+                date,
+                total: total.toFixed(2),
+                data
+            };
+
+            // Récupérer l'historique existant
+            let history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
+            history.unshift(listItem); // Ajouter au début
+            
+            // Limiter à 50 listes
+            if (history.length > 50) {
+                history = history.slice(0, 50);
+            }
+
+            localStorage.setItem('shopping-history', JSON.stringify(history));
+            
+            alert('✅ Liste sauvegardée dans l\'historique !');
+        }
+
+        function openHistory() {
+            const modal = document.getElementById('historyModal');
+            modal.classList.add('active');
+            displayHistory();
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').classList.remove('active');
+        }
+
+        function displayHistory() {
+            const history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
+            const listDiv = document.getElementById('historyList');
+
+            if (history.length === 0) {
+                listDiv.innerHTML = '<p style="text-align: center; color: #999;">Aucune course sauvegardée</p>';
+                return;
+            }
+
+            listDiv.innerHTML = history.map((item, index) => `
+                <div class="history-item" onclick="loadHistoryItem(${index})">
+                    <div class="history-date">${item.date}</div>
+                    <div class="history-total">${item.total} €</div>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteHistoryItem(${index})" style="margin-top: 10px;">🗑️ Supprimer</button>
+                </div>
+            `).join('');
+        }
+
+        function loadHistoryItem(index) {
+            if (!confirm('Charger cette liste ? (La liste actuelle sera remplacée)')) {
+                return;
+            }
+
+            const history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
+            const item = history[index];
+
+            // Vider les tableaux actuels
+            stores.filter(s => s.enabled).forEach(store => {
+                const tbody = document.getElementById(`${store.id}-body`);
+                if (tbody) tbody.innerHTML = '';
+            });
+
+            // Charger les données
+            Object.keys(item.data).forEach(storeId => {
+                if (item.data[storeId]) {
+                    item.data[storeId].forEach(product => {
+                        addRow(storeId);
+                        const tbody = document.getElementById(`${storeId}-body`);
+                        if (!tbody) return;
+                        
+                        const lastRow = tbody.lastElementChild;
+                        if (!lastRow) return;
+                        
+                        const inputs = lastRow.querySelectorAll('input');
+                        inputs[0].value = product.article;
+                        inputs[1].value = product.prix;
+                        inputs[2].value = product.qte;
+                        inputs[3].value = product.red_euro;
+                        inputs[4].value = product.red_pct;
+                        inputs[5].value = product.offre;
+                    });
+                }
+            });
+
+            calculate();
+            closeHistory();
+        }
+
+        function deleteHistoryItem(index) {
+            let history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
+            history.splice(index, 1);
+            localStorage.setItem('shopping-history', JSON.stringify(history));
+            displayHistory();
+        }
+
+        function renderStores() {
+            const container = document.querySelector('.container');
+            
+            // Supprimer les anciennes sections
+            document.querySelectorAll('.store-section').forEach(el => el.remove());
+
+            // Recréer les sections pour les magasins actifs
+            stores.filter(s => s.enabled).forEach(store => {
+                const section = createStoreSection(store);
+                container.insertBefore(section, document.querySelector('.grand-total'));
+            });
+
+            calculate();
+        }
+
+        function createStoreSection(store) {
+            const section = document.createElement('div');
+            section.className = 'store-section';
+            const storeColor = getEmojiColor(store.emoji);
+            
+            section.innerHTML = `
+                <div class="store-header">
+                    <div class="store-title" contenteditable="true" id="${store.id}-title" onblur="saveTitle('${store.id}')" style="color: ${storeColor};">${store.emoji} ${store.name}</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="clear-btn" onclick="clearAll('${store.id}')" title="Effacer tous les articles">🗑️ Tout effacer</button>
+                        <button class="add-btn" onclick="addRow('${store.id}')">+ Ajouter un article</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Article</th>
+                                <th>Prix (€)</th>
+                                <th>Qté</th>
+                                <th>Réd. (€)</th>
+                                <th>Réd. (%)</th>
+                                <th>Offre</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="${store.id}-body"></tbody>
+                    </table>
+                </div>
+                <div class="totals">
+                    <div class="total-row">
+                        <span>Prix sans réduction :</span>
+                        <span id="${store.id}-base">0.00 €</span>
+                    </div>
+                    <div class="total-row savings">
+                        <span>💰 Économies :</span>
+                        <span id="${store.id}-savings">0.00 €</span>
+                    </div>
+                    <div class="total-row main">
+                        <span id="${store.id}-total-label">TOTAL ${store.name.toUpperCase()} :</span>
+                        <span id="${store.id}-total">0.00 €</span>
+                    </div>
+                </div>
+            `;
+            return section;
+        }
+
+        function openStoreManager() {
+            document.getElementById('storeManagerModal').classList.add('active');
+            displayStoresList();
+        }
+
+        function closeStoreManager() {
+            document.getElementById('storeManagerModal').classList.remove('active');
+        }
+
+        function displayStoresList() {
+            const listDiv = document.getElementById('storesList');
+            listDiv.innerHTML = stores.map((store, index) => {
+                const storeColor = getEmojiColor(store.emoji);
+                return `
+                <div class="store-manager-item">
+                    <div>
+                        <strong style="color: ${storeColor};">${store.emoji} ${store.name}</strong>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="icon-btn ${store.enabled ? '' : 'danger'}" onclick="toggleStore(${index})">
+                            ${store.enabled ? '✅ Activé' : '❌ Désactivé'}
+                        </button>
+                        ${stores.length > 1 ? `<button class="icon-btn danger" onclick="removeStore(${index})">🗑️</button>` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function toggleStore(index) {
+            stores[index].enabled = !stores[index].enabled;
+            localStorage.setItem('custom-stores', JSON.stringify(stores));
+            displayStoresList();
+            renderStores();
+        }
+
+        function removeStore(index) {
+            if (!confirm(`Supprimer ${stores[index].name} ?`)) return;
+            stores.splice(index, 1);
+            localStorage.setItem('custom-stores', JSON.stringify(stores));
+            displayStoresList();
+            renderStores();
+        }
+
+        function addNewStore() {
+            const name = document.getElementById('newStoreName').value.trim();
+            const emoji = document.getElementById('newStoreEmoji').value;
+
+            if (!name) {
+                alert('Veuillez entrer un nom de magasin');
+                return;
+            }
+
+            const id = 'store_' + Date.now();
+            stores.push({
+                id,
+                name,
+                emoji: emoji,
+                enabled: true
+            });
+
+            localStorage.setItem('custom-stores', JSON.stringify(stores));
+            
+            document.getElementById('newStoreName').value = '';
+            document.getElementById('newStoreEmoji').selectedIndex = 0;
+            
+            displayStoresList();
+            renderStores();
+        }
+
+        // ============ GESTION DES MAGASINS - FIN ============
+
+        function initStores() {
+            const savedStores = localStorage.getItem('custom-stores');
+            if (savedStores) {
+                stores = JSON.parse(savedStores);
+            } else {
+                stores = [
+                    { id: 'auchan', name: 'Auchan Plaisir', emoji: '🔴', enabled: true },
+                    { id: 'leclerc', name: 'Leclerc Bois D\'Arcy', emoji: '🔵', enabled: true }
+                ];
+            }
+            renderStores();
+        }
+
+        // ============ DÉMARRAGE DE L'APPLICATION ============
+        // Appeler init() APRÈS que toutes les fonctions soient définies
+        init();
+        
+    </script>
+</body>
+</html>
