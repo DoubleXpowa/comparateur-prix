@@ -379,6 +379,22 @@
             font-size: 16px;
         }
 
+        body.dark-mode #historyDetailContent table {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #historyDetailContent th {
+            border-bottom-color: #555;
+        }
+
+        body.dark-mode #historyDetailContent tr {
+            border-bottom-color: #444;
+        }
+
+        body.dark-mode #historyDetailContent > div {
+            background: #2d2d2d !important;
+        }
+
         .table-container {
             overflow-x: auto;
             margin-bottom: 15px;
@@ -598,10 +614,35 @@
                     
                     <label style="display: block; margin: 15px 0 5px 0; font-weight: bold;">Choisir un emoji :</label>
                     <select id="newStoreEmoji" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; cursor: pointer;">
-                        ${storeEmojis.map(e => `<option value="${e.emoji}">${e.emoji} ${e.name}</option>`).join('')}
+                        <!-- Les options seront générées par JavaScript -->
                     </select>
                     
                     <button class="add-btn" onclick="addNewStore()" style="width: 100%; margin-top: 15px;">Ajouter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Détail historique -->
+        <div class="modal" id="historyDetailModal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h2>📋 Détail de la liste</h2>
+                    <button class="close-btn" onclick="closeHistoryDetail()">&times;</button>
+                </div>
+                <div id="historyDetailContent"></div>
+            </div>
+        </div>
+
+        <!-- Modal de confirmation -->
+        <div class="modal" id="confirmModal">
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>⚠️ Confirmation</h2>
+                </div>
+                <p id="confirmMessage" style="margin: 20px 0; font-size: 16px;"></p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="icon-btn" onclick="confirmNo()" style="background: #95a5a6;">Annuler</button>
+                    <button class="icon-btn danger" onclick="confirmYes()">Confirmer</button>
                 </div>
             </div>
         </div>
@@ -1045,43 +1086,57 @@
         }
 
         function loadHistoryItem(index) {
-            if (!confirm('Charger cette liste ? (La liste actuelle sera remplacée)')) {
-                return;
-            }
-
             const history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
             const item = history[index];
 
-            // Vider les tableaux actuels
-            stores.filter(s => s.enabled).forEach(store => {
-                const tbody = document.getElementById(`${store.id}-body`);
-                if (tbody) tbody.innerHTML = '';
-            });
+            // Créer le contenu de la modal
+            let html = `<div style="margin-bottom: 20px;">
+                <p style="font-size: 18px; font-weight: bold; color: #667eea;">${item.date}</p>
+                <p style="font-size: 24px; font-weight: bold; color: #27ae60;">Total : ${item.total} €</p>
+            </div>`;
 
-            // Charger les données
+            // Afficher les articles par magasin
             Object.keys(item.data).forEach(storeId => {
-                if (item.data[storeId]) {
+                if (item.data[storeId] && item.data[storeId].length > 0) {
+                    const storeName = storeId.charAt(0).toUpperCase() + storeId.slice(1);
+                    html += `
+                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                            <h3 style="margin-bottom: 15px;">${storeName}</h3>
+                            <table style="width: 100%; font-size: 14px;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #ddd;">
+                                        <th style="text-align: left; padding: 8px;">Article</th>
+                                        <th style="text-align: center; padding: 8px;">Prix</th>
+                                        <th style="text-align: center; padding: 8px;">Qté</th>
+                                        <th style="text-align: center; padding: 8px;">Réd. €</th>
+                                        <th style="text-align: center; padding: 8px;">Réd. %</th>
+                                        <th style="text-align: center; padding: 8px;">Offre</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
                     item.data[storeId].forEach(product => {
-                        addRow(storeId);
-                        const tbody = document.getElementById(`${storeId}-body`);
-                        if (!tbody) return;
-                        
-                        const lastRow = tbody.lastElementChild;
-                        if (!lastRow) return;
-                        
-                        const inputs = lastRow.querySelectorAll('input');
-                        inputs[0].value = product.article;
-                        inputs[1].value = product.prix;
-                        inputs[2].value = product.qte;
-                        inputs[3].value = product.red_euro;
-                        inputs[4].value = product.red_pct;
-                        inputs[5].value = product.offre;
+                        html += `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 8px;">${product.article}</td>
+                                <td style="text-align: center; padding: 8px;">${product.prix} €</td>
+                                <td style="text-align: center; padding: 8px;">${product.qte}</td>
+                                <td style="text-align: center; padding: 8px;">${product.red_euro || '-'}</td>
+                                <td style="text-align: center; padding: 8px;">${product.red_pct || '-'}</td>
+                                <td style="text-align: center; padding: 8px;">${product.offre || '-'}</td>
+                            </tr>`;
                     });
+                    
+                    html += `</tbody></table></div>`;
                 }
             });
 
-            calculate();
-            closeHistory();
+            document.getElementById('historyDetailContent').innerHTML = html;
+            document.getElementById('historyDetailModal').classList.add('active');
+        }
+
+        function closeHistoryDetail() {
+            document.getElementById('historyDetailModal').classList.remove('active');
         }
 
         function deleteHistoryItem(index) {
@@ -1156,7 +1211,30 @@
 
         function openStoreManager() {
             document.getElementById('storeManagerModal').classList.add('active');
+            
+            // Remplir le sélecteur d'emoji
+            const emojiSelect = document.getElementById('newStoreEmoji');
+            emojiSelect.innerHTML = storeEmojis.map(e => 
+                `<option value="${e.emoji}">${e.emoji} ${e.name}</option>`
+            ).join('');
+            
             displayStoresList();
+            
+            // Ajouter la délégation d'événements sur le conteneur
+            const storesList = document.getElementById('storesList');
+            storesList.onclick = function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                
+                const action = btn.getAttribute('data-action');
+                const index = parseInt(btn.getAttribute('data-index'));
+                
+                if (action === 'toggle') {
+                    toggleStore(index);
+                } else if (action === 'remove') {
+                    removeStore(index);
+                }
+            };
         }
 
         function closeStoreManager() {
@@ -1173,10 +1251,10 @@
                         <strong style="color: ${storeColor};">${store.emoji} ${store.name}</strong>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="icon-btn ${store.enabled ? '' : 'danger'}" onclick="toggleStore(${index})">
+                        <button class="icon-btn ${store.enabled ? '' : 'danger'}" data-action="toggle" data-index="${index}">
                             ${store.enabled ? '✅ Activé' : '❌ Désactivé'}
                         </button>
-                        ${stores.length > 1 ? `<button class="icon-btn danger" onclick="removeStore(${index})">🗑️</button>` : ''}
+                        <button class="icon-btn danger" data-action="remove" data-index="${index}">🗑️ Supprimer</button>
                     </div>
                 </div>
                 `;
@@ -1191,11 +1269,38 @@
         }
 
         function removeStore(index) {
-            if (!confirm(`Supprimer ${stores[index].name} ?`)) return;
-            stores.splice(index, 1);
-            localStorage.setItem('custom-stores', JSON.stringify(stores));
-            displayStoresList();
-            renderStores();
+            console.log('removeStore called with index:', index);
+            console.log('Store to remove:', stores[index]);
+            
+            // Utiliser la modal personnalisée au lieu de confirm()
+            showConfirm(`Voulez-vous vraiment supprimer ${stores[index].name} ?`, () => {
+                stores.splice(index, 1);
+                localStorage.setItem('custom-stores', JSON.stringify(stores));
+                displayStoresList();
+                renderStores();
+            });
+        }
+
+        // Système de confirmation personnalisé
+        let confirmCallback = null;
+
+        function showConfirm(message, callback) {
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmModal').classList.add('active');
+            confirmCallback = callback;
+        }
+
+        function confirmYes() {
+            document.getElementById('confirmModal').classList.remove('active');
+            if (confirmCallback) {
+                confirmCallback();
+                confirmCallback = null;
+            }
+        }
+
+        function confirmNo() {
+            document.getElementById('confirmModal').classList.remove('active');
+            confirmCallback = null;
         }
 
         function addNewStore() {
@@ -1246,3 +1351,4 @@
     </script>
 </body>
 </html>
+Mise à jour - Mode sombre + Historique + Gestion magasins
