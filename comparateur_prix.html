@@ -1,30 +1,34 @@
-<!--
-+==================================================================+
-|        ✏️  ZONE DE MODIFICATION - VERSION DE L'APPLICATION        |
-|   Modifiez UNIQUEMENT ces 2 lignes à chaque mise à jour :        |
-|                                                                  |
-|   VERSION    : v1.1.8                                            |
-|   DESCRIPTIF : Fix mode sombre + updateViaCache none             |
-|                                                                  |
-|   ⚠️ Mettez aussi CACHE_NAME dans service-worker.js (ligne 4)    |
-+------------------------------------------------------------------+
-|                    HISTORIQUE DES VERSIONS                       |
-|   v1.1.3 (24/02) : Fix mode sombre + updateViaCache none         |
-|   v1.1.2 (24/02) : Fix auto-update + Gestion des caches         |
-|   v1.1.0 (24/02) : Mode sombre + Historique + Gestion magasins  |
-|   v1.0.0 (23/02) : Version initiale                              |
-+==================================================================+
--->
 <!DOCTYPE html>
 <html lang="fr">
+<!--
+    ========================================
+    📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
+    ========================================
+    
+    VERSION ACTUELLE : v1.2.0
+    DATE : 24 Février 2026
+    
+    ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
+    1. Incrémenter le numéro de version ci-dessus ET dans APP_VERSION (ligne ~1070)
+    2. Mettre à jour le bandeau de version en bas de page (ligne ~793)
+       Format : <span class="version-number">vX.X.X</span>
+       + Description des changements
+    3. ⚠️ CRUCIAL : Mettre à jour le CACHE_NAME dans service-worker.js (ligne 4)
+       Sinon l'app restera sur l'ancienne version !
+    
+    HISTORIQUE DES VERSIONS :
+    - v1.2.0 (24/02/2026) : Désactivation refresh auto + Pull-to-refresh désactivé + Notification MAJ
+    - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
+    - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
+    - v1.0.0 (23/02/2026) : Version initiale
+    
+    ========================================
+-->
 <head>
-    <!-- ================================================================ -->
-    <!-- ✏️ MODIFIEZ CES 2 LIGNES UNIQUEMENT POUR CHANGER LA VERSION      -->
-    <meta name="app-version"      content="v1.1.8">
-    <meta name="app-version-desc" content="import + export donné avant suppr Cache mis a jour">
-    <!-- ================================================================ -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="Comparez vos prix entre Auchan et Leclerc en temps réel">
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -47,6 +51,7 @@
             min-height: 100vh;
             padding: 10px;
             transition: background 0.3s ease;
+            overscroll-behavior-y: contain; /* Désactive le pull-to-refresh */
         }
 
         body.dark-mode {
@@ -88,68 +93,6 @@
             background: #2d3748;
             border-left-color: #4299e1;
             color: #e0e0e0;
-        }
-
-        /* ===== CORRECTIONS MODE SOMBRE ===== */
-
-        /* Texte "TOTAL AUCHAN / LECLERC" et autres totaux */
-        body.dark-mode .total-row {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .total-row.main {
-            color: #ffffff;
-            border-top-color: #555;
-        }
-
-        body.dark-mode .total-row.savings {
-            color: #2ecc71;
-        }
-
-        /* Titres et textes dans la zone info-box (comment utiliser les offres promo) */
-        body.dark-mode .info-box strong {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .info-box ul {
-            color: #c0c0c0;
-        }
-
-        /* Bandeau de version en bas */
-        body.dark-mode .version-banner {
-            color: #aaa;
-            border-top-color: #444;
-        }
-
-        /* Modales en mode sombre */
-        body.dark-mode .modal-content {
-            background: #1e1e1e;
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .modal-header {
-            border-bottom-color: #444;
-        }
-
-        body.dark-mode .modal-header h2 {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode p,
-        body.dark-mode label {
-            color: #e0e0e0;
-        }
-
-        /* Gestion des magasins */
-        body.dark-mode .store-manager-item {
-            background: #2d2d2d;
-            border-color: #3a3a3a;
-            color: #e0e0e0;
-        }
-
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
         .container {
@@ -760,13 +703,6 @@
                 <button class="icon-btn" onclick="openStoreManager()">
                     🏪 Gérer magasins
                 </button>
-                <button class="icon-btn" onclick="exportData()" style="background: #27ae60;" title="Sauvegarder toutes vos données dans un fichier">
-                    📤 Exporter
-                </button>
-                <button class="icon-btn" onclick="document.getElementById('importFile').click()" style="background: #8e44ad;" title="Restaurer vos données depuis un fichier">
-                    📥 Importer
-                </button>
-                <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
             </div>
             <div class="control-group">
                 <span style="font-weight: bold; color: white;">🌙 Mode sombre</span>
@@ -859,10 +795,10 @@
             </div>
         </div>
 
-        <!-- Bandeau de version — mis à jour automatiquement depuis les balises meta -->
+        <!-- Bandeau de version -->
         <div class="version-banner">
-            <span class="version-number" id="version-display"></span>
-            <strong>Dernière mise à jour :</strong> <span id="version-desc-display"></span>
+            <span class="version-number">v1.2.0</span>
+            <strong>Dernière mise à jour :</strong> Désactivation refresh auto + Pull-to-refresh bloqué - Vos données sont protégées !
         </div>
     </div>
 
@@ -1113,8 +1049,7 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        // ✅ Version lue automatiquement depuis la balise <meta name="app-version"> dans le <head>
-        const APP_VERSION = document.querySelector('meta[name="app-version"]').getAttribute('content');
+        const APP_VERSION = 'v1.2.0';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1135,52 +1070,102 @@
             }
         }
         
-        // Enregistrer le Service Worker avec force update
+        // Enregistrer le Service Worker avec notification de mise à jour (SANS refresh auto)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Vérifier la version et forcer la mise à jour si nécessaire
+                // Vérifier la version et notifier si nécessaire
                 const lastVersion = localStorage.getItem('app-version');
                 
-                if (lastVersion !== APP_VERSION) {
-                    console.log(`Mise à jour détectée : ${lastVersion} → ${APP_VERSION}`);
+                if (lastVersion && lastVersion !== APP_VERSION) {
+                    console.log(`Mise à jour disponible : ${lastVersion} → ${APP_VERSION}`);
                     
-                    // Désinscrire tous les anciens service workers
-                    navigator.serviceWorker.getRegistrations().then(registrations => {
-                        registrations.forEach(registration => {
-                            registration.unregister();
-                            console.log('✅ Ancien Service Worker désinstallé');
-                        });
-                    });
-                    
-                    // Vider tous les caches
-                    caches.keys().then(cacheNames => {
-                        return Promise.all(
-                            cacheNames.map(cacheName => {
-                                console.log(`🗑️ Suppression du cache: ${cacheName}`);
-                                return caches.delete(cacheName);
-                            })
-                        );
-                    }).then(() => {
-                        // Sauvegarder la nouvelle version
-                        localStorage.setItem('app-version', APP_VERSION);
-                        console.log('✅ Caches supprimés, nouvelle version installée');
-                        
-                        // Réenregistrer le service worker
-                        navigator.serviceWorker.register('service-worker.js')
-                            .then(reg => {
-                                console.log('✅ Nouveau Service Worker enregistré');
-                                // Forcer le rechargement après 1 seconde
-                                setTimeout(() => {
-                                    window.location.reload(true);
-                                }, 1000);
-                            });
-                    });
-                } else {
-                    // Version identique, enregistrement normal
-                    navigator.serviceWorker.register('service-worker.js')
-                        .then(reg => console.log('✅ Service Worker enregistré'))
-                        .catch(err => console.log('❌ Erreur Service Worker:', err));
+                    // Afficher une notification de mise à jour disponible
+                    showUpdateNotification(lastVersion, APP_VERSION);
+                } else if (!lastVersion) {
+                    // Première installation
+                    localStorage.setItem('app-version', APP_VERSION);
                 }
+                
+                // Enregistrer le service worker normalement
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => {
+                        console.log('✅ Service Worker enregistré');
+                        
+                        // Vérifier les mises à jour du SW
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Nouvelle version disponible
+                                    showUpdateNotification(lastVersion, APP_VERSION);
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.log('❌ Erreur Service Worker:', err));
+            });
+        }
+
+        // Afficher une notification de mise à jour
+        function showUpdateNotification(oldVersion, newVersion) {
+            const notification = document.createElement('div');
+            notification.id = 'update-notification';
+            notification.innerHTML = `
+                <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center; animation: slideDown 0.3s ease;">
+                    <div style="font-weight: bold; margin-bottom: 8px;">🎉 Nouvelle version disponible !</div>
+                    <div style="font-size: 14px; margin-bottom: 12px;">${oldVersion || 'ancienne'} → ${newVersion}</div>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="applyUpdate()" style="background: white; color: #667eea; border: none; padding: 8px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">Mettre à jour</button>
+                        <button onclick="closeUpdateNotification()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer;">Plus tard</button>
+                    </div>
+                </div>
+                <style>
+                    @keyframes slideDown {
+                        from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                </style>
+            `;
+            document.body.appendChild(notification);
+        }
+
+        // Fermer la notification
+        function closeUpdateNotification() {
+            const notification = document.getElementById('update-notification');
+            if (notification) {
+                notification.style.animation = 'slideDown 0.3s ease reverse';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }
+
+        // Appliquer la mise à jour (uniquement quand l'utilisateur clique)
+        function applyUpdate() {
+            console.log('🔄 Application de la mise à jour...');
+            
+            // Désinscrire tous les anciens service workers
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => {
+                    registration.unregister();
+                    console.log('✅ Ancien Service Worker désinstallé');
+                });
+            });
+            
+            // Vider tous les caches
+            caches.keys().then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        console.log(`🗑️ Suppression du cache: ${cacheName}`);
+                        return caches.delete(cacheName);
+                    })
+                );
+            }).then(() => {
+                // Sauvegarder la nouvelle version
+                localStorage.setItem('app-version', APP_VERSION);
+                console.log('✅ Mise à jour appliquée');
+                
+                // Afficher message et recharger SEULEMENT quand l'utilisateur clique
+                alert('✅ Mise à jour appliquée ! La page va se recharger.');
+                window.location.reload(true);
             });
         }
 
@@ -1606,130 +1591,10 @@
             renderStores();
         }
 
-        // ============ EXPORT / IMPORT DES DONNÉES ============
-
-        function exportData() {
-            // Récupérer toutes les clés importantes du localStorage
-            const backup = {
-                exportDate: new Date().toLocaleString('fr-FR'),
-                appVersion: APP_VERSION,
-                data: {}
-            };
-
-            const keys = [
-                'comparateur-data',
-                'shopping-history',
-                'custom-stores',
-                'darkMode',
-                'app-version'
-            ];
-
-            // Récupérer aussi les titres des magasins dynamiques
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.endsWith('-title')) {
-                    keys.push(key);
-                }
-            }
-
-            keys.forEach(key => {
-                const val = localStorage.getItem(key);
-                if (val !== null) backup.data[key] = val;
-            });
-
-            // Créer et télécharger le fichier JSON
-            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            const date = new Date().toISOString().slice(0, 10);
-            a.href     = url;
-            a.download = `comparateur-sauvegarde-${date}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            showToast('✅ Données exportées avec succès !');
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const backup = JSON.parse(e.target.result);
-
-                    if (!backup.data) {
-                        showToast('❌ Fichier invalide !', true);
-                        return;
-                    }
-
-                    showConfirm(
-                        `Importer la sauvegarde du ${backup.exportDate || 'date inconnue'} (version ${backup.appVersion || '?'}) ?\n\nCela remplacera vos données actuelles.`,
-                        () => {
-                            // Restaurer toutes les clés
-                            Object.entries(backup.data).forEach(([key, value]) => {
-                                localStorage.setItem(key, value);
-                            });
-
-                            showToast('✅ Données importées ! Rechargement...');
-                            setTimeout(() => window.location.reload(), 1500);
-                        }
-                    );
-                } catch (err) {
-                    showToast('❌ Erreur lors de la lecture du fichier !', true);
-                }
-            };
-            reader.readAsText(file);
-            // Reset l'input pour permettre de réimporter le même fichier
-            event.target.value = '';
-        }
-
-        function showToast(message, isError = false) {
-            // Supprimer un toast existant
-            const existing = document.getElementById('toast-notif');
-            if (existing) existing.remove();
-
-            const toast = document.createElement('div');
-            toast.id = 'toast-notif';
-            toast.textContent = message;
-            toast.style.cssText = `
-                position: fixed;
-                bottom: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: ${isError ? '#e74c3c' : '#27ae60'};
-                color: white;
-                padding: 12px 24px;
-                border-radius: 25px;
-                font-size: 15px;
-                font-weight: bold;
-                z-index: 9999;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                animation: fadeInUp 0.3s ease;
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        // ============ EXPORT / IMPORT - FIN ============
-
         // ============ DÉMARRAGE DE L'APPLICATION ============
         // Appeler init() APRÈS que toutes les fonctions soient définies
-
-        // ✅ Injection automatique de la version dans le bandeau
-        (function() {
-            const version = document.querySelector('meta[name="app-version"]').getAttribute('content');
-            const desc    = document.querySelector('meta[name="app-version-desc"]').getAttribute('content');
-            const vEl = document.getElementById('version-display');
-            const dEl = document.getElementById('version-desc-display');
-            if (vEl) vEl.textContent = version;
-            if (dEl) dEl.textContent = desc;
-        })();
-
         init();
         
     </script>
 </body>
 </html>
-
