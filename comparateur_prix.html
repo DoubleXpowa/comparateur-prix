@@ -5,7 +5,7 @@
     📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
     ========================================
     
-    VERSION ACTUELLE : v1.3.0
+    VERSION ACTUELLE : v1.3.1
     DATE : 24 Février 2026
     
     ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
@@ -17,6 +17,7 @@
        Sinon l'app restera sur l'ancienne version !
     
     HISTORIQUE DES VERSIONS :
+    - v1.3.1 (24/02/2026) : FIX CRITIQUE - Données restaurées au chargement + Protection totale !
     - v1.3.0 (24/02/2026) : Sauvegarde instantanée à chaque modification - AUCUNE perte possible !
     - v1.2.2 (24/02/2026) : Pull-to-refresh vraiment bloqué + Bouton MAJ manuelle PC
     - v1.2.1 (24/02/2026) : Ajout Import/Export des données (backup/restore complet)
@@ -808,8 +809,8 @@
 
         <!-- Bandeau de version -->
         <div class="version-banner">
-            <span class="version-number">v1.3.0</span>
-            <strong>Dernière mise à jour :</strong> 🛡️ Sauvegarde automatique à chaque modification - Vos données sont protégées même en cas de refresh !
+            <span class="version-number">v1.3.1</span>
+            <strong>Dernière mise à jour :</strong> 🛡️ FIX CRITIQUE - Vos données sont maintenant TOUJOURS restaurées (même après fermeture app) !
             <button onclick="checkForUpdates()" style="margin-left: 15px; background: #667eea; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">
                 🔄 Vérifier les mises à jour
             </button>
@@ -1027,28 +1028,110 @@
             // Charger le mode sombre
             loadDarkMode();
 
+            // RESTAURER les données si un backup existe (après mise à jour)
+            const backup = sessionStorage.getItem('backup-before-update');
+            if (backup) {
+                try {
+                    const backupData = JSON.parse(backup);
+                    console.log('🔄 Restauration des données après mise à jour...');
+                    
+                    // Restaurer toutes les données
+                    if (backupData.comparateurData) {
+                        localStorage.setItem('comparateur-data', backupData.comparateurData);
+                    }
+                    if (backupData.shoppingHistory) {
+                        localStorage.setItem('shopping-history', backupData.shoppingHistory);
+                    }
+                    if (backupData.customStores) {
+                        localStorage.setItem('custom-stores', backupData.customStores);
+                    }
+                    if (backupData.darkMode) {
+                        localStorage.setItem('darkMode', backupData.darkMode);
+                    }
+                    if (backupData.appVersion) {
+                        localStorage.setItem('app-version', backupData.appVersion);
+                    }
+                    
+                    // Restaurer les titres
+                    if (backupData.titles) {
+                        Object.keys(backupData.titles).forEach(storeId => {
+                            localStorage.setItem(`${storeId}-title`, backupData.titles[storeId]);
+                        });
+                    }
+                    
+                    // Supprimer le backup pour ne pas le restaurer à chaque fois
+                    sessionStorage.removeItem('backup-before-update');
+                    console.log('✅ Données restaurées avec succès !');
+                } catch (error) {
+                    console.error('❌ Erreur lors de la restauration:', error);
+                }
+            }
+
             // Initialiser les magasins
             initStores();
 
             // Charger les titres sauvegardés
-            ['auchan', 'leclerc'].forEach(store => {
-                const savedTitle = localStorage.getItem(`${store}-title`);
-                const titleElement = document.getElementById(`${store}-title`);
+            stores.forEach(store => {
+                const savedTitle = localStorage.getItem(`${store.id}-title`);
+                const titleElement = document.getElementById(`${store.id}-title`);
                 if (titleElement && savedTitle) {
                     titleElement.textContent = savedTitle;
-                    updateTotalLabel(store, savedTitle);
+                    updateTotalLabel(store.id, savedTitle);
                 } else if (titleElement) {
                     // Initialiser avec le titre par défaut
                     const defaultTitle = titleElement.textContent;
-                    updateTotalLabel(store, defaultTitle);
+                    updateTotalLabel(store.id, defaultTitle);
                 }
             });
 
-            ['auchan', 'leclerc'].forEach(store => {
-                const tbody = document.getElementById(`${store}-body`);
-                if (tbody && initialData[store]) {
-                    initialData[store].forEach(item => {
-                        addRow(store);
+            // CHARGER LES DONNÉES SAUVEGARDÉES depuis localStorage
+            const savedData = localStorage.getItem('comparateur-data');
+            
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    console.log('📂 Chargement des données sauvegardées...');
+                    
+                    // Charger les données pour chaque magasin
+                    Object.keys(data).forEach(storeId => {
+                        const tbody = document.getElementById(`${storeId}-body`);
+                        if (tbody && data[storeId] && data[storeId].length > 0) {
+                            data[storeId].forEach(item => {
+                                addRow(storeId);
+                                const lastRow = tbody.lastElementChild;
+                                const inputs = lastRow.querySelectorAll('input');
+                                inputs[0].value = item.article || '';
+                                inputs[1].value = item.prix || '';
+                                inputs[2].value = item.qte || '';
+                                inputs[3].value = item.red_euro || '';
+                                inputs[4].value = item.red_pct || '';
+                                inputs[5].value = item.offre || '';
+                            });
+                        }
+                    });
+                    
+                    console.log('✅ Données chargées avec succès !');
+                } catch (error) {
+                    console.error('❌ Erreur lors du chargement des données:', error);
+                    // Si erreur, charger les données d'exemple
+                    loadInitialData();
+                }
+            } else {
+                // Pas de données sauvegardées, charger les données d'exemple
+                console.log('📝 Première utilisation - Chargement des données d\'exemple');
+                loadInitialData();
+            }
+            
+            calculate();
+        }
+
+        // Charger les données d'exemple initiales
+        function loadInitialData() {
+            Object.keys(initialData).forEach(storeId => {
+                const tbody = document.getElementById(`${storeId}-body`);
+                if (tbody && initialData[storeId]) {
+                    initialData[storeId].forEach(item => {
+                        addRow(storeId);
                         const lastRow = tbody.lastElementChild;
                         const inputs = lastRow.querySelectorAll('input');
                         inputs[0].value = item.article;
@@ -1060,13 +1143,12 @@
                     });
                 }
             });
-            calculate();
         }
 
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.3.0';
+        const APP_VERSION = 'v1.3.1';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1190,6 +1272,27 @@
         function checkForUpdates() {
             console.log('🔍 Vérification manuelle des mises à jour...');
             
+            // IMPORTANT : Sauvegarder toutes les données AVANT de vider le cache
+            const backupData = {
+                comparateurData: localStorage.getItem('comparateur-data'),
+                shoppingHistory: localStorage.getItem('shopping-history'),
+                customStores: localStorage.getItem('custom-stores'),
+                darkMode: localStorage.getItem('darkMode'),
+                appVersion: localStorage.getItem('app-version'),
+                titles: {}
+            };
+            
+            // Sauvegarder tous les titres personnalisés
+            stores.forEach(store => {
+                const title = localStorage.getItem(`${store.id}-title`);
+                if (title) {
+                    backupData.titles[store.id] = title;
+                }
+            });
+            
+            // Stocker le backup dans sessionStorage (survit au reload mais pas à la fermeture)
+            sessionStorage.setItem('backup-before-update', JSON.stringify(backupData));
+            
             // Forcer le rechargement du service worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -1199,13 +1302,13 @@
                 });
             }
             
-            // Vider le cache et recharger
+            // Vider UNIQUEMENT les caches (PAS le localStorage)
             caches.keys().then(cacheNames => {
                 return Promise.all(
                     cacheNames.map(cacheName => caches.delete(cacheName))
                 );
             }).then(() => {
-                alert('🔄 Vérification en cours...\n\nLa page va se recharger pour récupérer la dernière version depuis GitHub.');
+                alert('🔄 Vérification en cours...\n\nLa page va se recharger pour récupérer la dernière version.\n\n✅ Vos données de courses sont préservées !');
                 // Hard reload pour forcer le téléchargement
                 window.location.reload(true);
             });
