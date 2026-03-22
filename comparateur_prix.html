@@ -5,7 +5,7 @@
     📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
     ========================================
     
-    VERSION ACTUELLE : v1.2.0
+    VERSION ACTUELLE : v1.2.1
     DATE : 24 Février 2026
     
     ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
@@ -17,6 +17,7 @@
        Sinon l'app restera sur l'ancienne version !
     
     HISTORIQUE DES VERSIONS :
+    - v1.2.1 (24/02/2026) : Ajout Import/Export des données (backup/restore complet)
     - v1.2.0 (24/02/2026) : Désactivation refresh auto + Pull-to-refresh désactivé + Notification MAJ
     - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
     - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
@@ -703,6 +704,13 @@
                 <button class="icon-btn" onclick="openStoreManager()">
                     🏪 Gérer magasins
                 </button>
+                <button class="icon-btn" onclick="exportData()" style="background: #27ae60;">
+                    📤 Exporter
+                </button>
+                <button class="icon-btn" onclick="document.getElementById('importFile').click()" style="background: #e67e22;">
+                    📥 Importer
+                </button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
             </div>
             <div class="control-group">
                 <span style="font-weight: bold; color: white;">🌙 Mode sombre</span>
@@ -797,8 +805,8 @@
 
         <!-- Bandeau de version -->
         <div class="version-banner">
-            <span class="version-number">v1.2.0</span>
-            <strong>Dernière mise à jour :</strong> Désactivation refresh auto + Pull-to-refresh bloqué - Vos données sont protégées !
+            <span class="version-number">v1.2.1</span>
+            <strong>Dernière mise à jour :</strong> Import/Export - Sauvegardez et restaurez toutes vos données !
         </div>
     </div>
 
@@ -1049,7 +1057,7 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.2.0';
+        const APP_VERSION = 'v1.2.1';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1242,6 +1250,107 @@
 
         // Sauvegarder avant de quitter
         window.addEventListener('beforeunload', autoSave);
+
+        // ============ IMPORT / EXPORT DES DONNÉES ============
+        
+        function exportData() {
+            // Récupérer toutes les données stockées
+            const exportData = {
+                version: APP_VERSION,
+                exportDate: new Date().toISOString(),
+                data: {
+                    currentList: localStorage.getItem('comparateur-data'),
+                    shoppingHistory: localStorage.getItem('shopping-history'),
+                    customStores: localStorage.getItem('custom-stores'),
+                    darkMode: localStorage.getItem('darkMode'),
+                    titles: {}
+                }
+            };
+            
+            // Récupérer les titres personnalisés des magasins
+            stores.forEach(store => {
+                const title = localStorage.getItem(`${store.id}-title`);
+                if (title) {
+                    exportData.data.titles[store.id] = title;
+                }
+            });
+            
+            // Créer le fichier JSON
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            // Créer un lien de téléchargement
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Nom du fichier avec date
+            const dateStr = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+            link.download = `comparateur-prix-backup-${dateStr}.json`;
+            
+            // Déclencher le téléchargement
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('✅ Données exportées avec succès !\n\nLe fichier a été téléchargé.');
+        }
+        
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    // Vérifier que c'est bien un export de cette app
+                    if (!importedData.version || !importedData.data) {
+                        throw new Error('Format de fichier invalide');
+                    }
+                    
+                    // Demander confirmation
+                    if (!confirm(`⚠️ Importer les données ?\n\nCela va REMPLACER vos données actuelles par celles du fichier.\n\nExporté le : ${new Date(importedData.exportDate).toLocaleString('fr-FR')}\nVersion : ${importedData.version}\n\nVoulez-vous continuer ?`)) {
+                        event.target.value = ''; // Reset input
+                        return;
+                    }
+                    
+                    // Restaurer les données
+                    if (importedData.data.currentList) {
+                        localStorage.setItem('comparateur-data', importedData.data.currentList);
+                    }
+                    if (importedData.data.shoppingHistory) {
+                        localStorage.setItem('shopping-history', importedData.data.shoppingHistory);
+                    }
+                    if (importedData.data.customStores) {
+                        localStorage.setItem('custom-stores', importedData.data.customStores);
+                    }
+                    if (importedData.data.darkMode) {
+                        localStorage.setItem('darkMode', importedData.data.darkMode);
+                    }
+                    
+                    // Restaurer les titres personnalisés
+                    if (importedData.data.titles) {
+                        Object.keys(importedData.data.titles).forEach(storeId => {
+                            localStorage.setItem(`${storeId}-title`, importedData.data.titles[storeId]);
+                        });
+                    }
+                    
+                    event.target.value = ''; // Reset input
+                    
+                    alert('✅ Données importées avec succès !\n\nLa page va se recharger pour appliquer les changements.');
+                    window.location.reload();
+                    
+                } catch (error) {
+                    alert('❌ Erreur lors de l\'import !\n\n' + error.message + '\n\nVérifiez que le fichier est bien un export de cette application.');
+                    event.target.value = ''; // Reset input
+                }
+            };
+            
+            reader.readAsText(file);
+        }
 
         // ============ HISTORIQUE DES COURSES ============
         function saveCurrentList() {
