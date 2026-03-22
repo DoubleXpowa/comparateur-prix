@@ -5,7 +5,7 @@
     📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
     ========================================
     
-    VERSION ACTUELLE : v1.2.1
+    VERSION ACTUELLE : v1.2.2
     DATE : 24 Février 2026
     
     ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
@@ -17,6 +17,7 @@
        Sinon l'app restera sur l'ancienne version !
     
     HISTORIQUE DES VERSIONS :
+    - v1.2.2 (24/02/2026) : Pull-to-refresh vraiment bloqué + Bouton MAJ manuelle PC
     - v1.2.1 (24/02/2026) : Ajout Import/Export des données (backup/restore complet)
     - v1.2.0 (24/02/2026) : Désactivation refresh auto + Pull-to-refresh désactivé + Notification MAJ
     - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
@@ -27,9 +28,10 @@
 -->
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="description" content="Comparez vos prix entre Auchan et Leclerc en temps réel">
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -805,8 +807,11 @@
 
         <!-- Bandeau de version -->
         <div class="version-banner">
-            <span class="version-number">v1.2.1</span>
-            <strong>Dernière mise à jour :</strong> Import/Export - Sauvegardez et restaurez toutes vos données !
+            <span class="version-number">v1.2.2</span>
+            <strong>Dernière mise à jour :</strong> Pull-to-refresh complètement bloqué + Bouton MAJ manuelle PC
+            <button onclick="checkForUpdates()" style="margin-left: 15px; background: #667eea; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">
+                🔄 Vérifier les mises à jour
+            </button>
         </div>
     </div>
 
@@ -1057,7 +1062,7 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.2.1';
+        const APP_VERSION = 'v1.2.2';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1173,6 +1178,31 @@
                 
                 // Afficher message et recharger SEULEMENT quand l'utilisateur clique
                 alert('✅ Mise à jour appliquée ! La page va se recharger.');
+                window.location.reload(true);
+            });
+        }
+
+        // Vérification manuelle des mises à jour (pour PC ou si notification ratée)
+        function checkForUpdates() {
+            console.log('🔍 Vérification manuelle des mises à jour...');
+            
+            // Forcer le rechargement du service worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    if (registrations.length > 0) {
+                        registrations.forEach(reg => reg.update());
+                    }
+                });
+            }
+            
+            // Vider le cache et recharger
+            caches.keys().then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+            }).then(() => {
+                alert('🔄 Vérification en cours...\n\nLa page va se recharger pour récupérer la dernière version depuis GitHub.');
+                // Hard reload pour forcer le téléchargement
                 window.location.reload(true);
             });
         }
@@ -1703,6 +1733,31 @@
         // ============ DÉMARRAGE DE L'APPLICATION ============
         // Appeler init() APRÈS que toutes les fonctions soient définies
         init();
+
+        // ============ BLOQUER LE PULL-TO-REFRESH ============
+        // Désactiver complètement le pull-to-refresh sur mobile
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            const touchDelta = touchY - touchStartY;
+            
+            // Si on est en haut de la page et qu'on tire vers le bas
+            if (window.scrollY === 0 && touchDelta > 0) {
+                e.preventDefault(); // Bloquer le pull-to-refresh
+            }
+        }, { passive: false });
+        
+        // Bloquer aussi l'overscroll
+        document.body.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && e.touches[0].clientY > touchStartY) {
+                e.preventDefault();
+            }
+        }, { passive: false });
         
     </script>
 </body>
