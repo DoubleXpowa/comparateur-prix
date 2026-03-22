@@ -1,7 +1,7 @@
 // ⚠️ IMPORTANT : Incrémenter cette version à CHAQUE mise à jour !
 // Cela force le navigateur à télécharger la nouvelle version
 // Format : 'comparateur-prix-vX.X.X' (doit correspondre à la version de l'app)
-const CACHE_NAME = 'comparateur-prix-v1.1.8';
+const CACHE_NAME = 'comparateur-prix-v1.2.0';
 const urlsToCache = [
   './comparateur_prix.html',
   './manifest.json'
@@ -38,18 +38,6 @@ self.addEventListener('activate', (event) => {
 
 // Interception des requêtes (stratégie Cache First)
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // ⚠️ Ne jamais intercepter le service worker lui-même
-  if (url.pathname.endsWith('service-worker.js')) {
-    return;
-  }
-
-  // Ne traiter que les requêtes GET
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -59,30 +47,25 @@ self.addEventListener('fetch', (event) => {
         }
 
         // Sinon, faire la requête réseau
-        return fetch(event.request).then((networkResponse) => {
-          // Ne pas mettre en cache les réponses invalides
-          if (!networkResponse || networkResponse.status !== 200) {
-            return networkResponse;
+        return fetch(event.request).then((response) => {
+          // Ne pas mettre en cache les requêtes non-GET
+          if (!response || response.status !== 200 || event.request.method !== 'GET') {
+            return response;
           }
 
-          // ⚠️ Ne pas mettre en cache le service worker lui-même
-          if (url.pathname.endsWith('service-worker.js')) {
-            return networkResponse;
-          }
-
-          // Cloner la réponse avant de la mettre en cache
-          const responseToCache = networkResponse.clone();
+          // Cloner la réponse
+          const responseToCache = response.clone();
 
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
             });
 
-          return networkResponse;
+          return response;
         });
       })
       .catch(() => {
-        // En cas d'échec réseau, retourner la page principale depuis le cache
+        // En cas d'échec, retourner une page hors ligne de base
         return caches.match('./comparateur_prix.html');
       })
   );
