@@ -5,7 +5,7 @@
     📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
     ========================================
     
-    VERSION ACTUELLE : v1.2.2
+    VERSION ACTUELLE : v1.3.0
     DATE : 24 Février 2026
     
     ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
@@ -17,6 +17,7 @@
        Sinon l'app restera sur l'ancienne version !
     
     HISTORIQUE DES VERSIONS :
+    - v1.3.0 (24/02/2026) : Sauvegarde instantanée à chaque modification - AUCUNE perte possible !
     - v1.2.2 (24/02/2026) : Pull-to-refresh vraiment bloqué + Bouton MAJ manuelle PC
     - v1.2.1 (24/02/2026) : Ajout Import/Export des données (backup/restore complet)
     - v1.2.0 (24/02/2026) : Désactivation refresh auto + Pull-to-refresh désactivé + Notification MAJ
@@ -807,8 +808,8 @@
 
         <!-- Bandeau de version -->
         <div class="version-banner">
-            <span class="version-number">v1.2.2</span>
-            <strong>Dernière mise à jour :</strong> Pull-to-refresh complètement bloqué + Bouton MAJ manuelle PC
+            <span class="version-number">v1.3.0</span>
+            <strong>Dernière mise à jour :</strong> 🛡️ Sauvegarde automatique à chaque modification - Vos données sont protégées même en cas de refresh !
             <button onclick="checkForUpdates()" style="margin-left: 15px; background: #667eea; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">
                 🔄 Vérifier les mises à jour
             </button>
@@ -916,16 +917,17 @@
             const defaultQty = isMobile ? '' : '1';
             
             row.innerHTML = `
-                <td><input type="text" placeholder="Article" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="1" min="0" placeholder="1" value="${defaultQty}" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="1" min="0" max="100" placeholder="%" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="text" placeholder="1+1@50%" oninput="calculate()" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="text" placeholder="Article" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="1" min="0" placeholder="1" value="${defaultQty}" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="number" step="1" min="0" max="100" placeholder="%" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
+                <td><input type="text" placeholder="1+1@50%" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
                 <td style="font-weight: bold; color: #27ae60;">0.00 €</td>
                 <td><button class="delete-btn" onclick="deleteRow(this)">✕</button></td>
             `;
             calculate();
+            autoSave(); // Sauvegarder après ajout
             // Focus sur le premier input de la nouvelle ligne
             row.cells[0].querySelector('input').focus();
         }
@@ -960,6 +962,7 @@
         function deleteRow(btn) {
             btn.closest('tr').remove();
             calculate();
+            autoSave(); // Sauvegarder après suppression
         }
 
         // Effacer toutes les lignes d'une section
@@ -968,6 +971,7 @@
                 const tbody = document.getElementById(`${store}-body`);
                 tbody.innerHTML = '';
                 calculate();
+                autoSave(); // Sauvegarder après effacement
             }
         }
 
@@ -1062,7 +1066,7 @@
         // ============ PWA FEATURES ============
         
         // Version de l'application
-        const APP_VERSION = 'v1.2.2';
+        const APP_VERSION = 'v1.3.0';
         
         // ============ MODE SOMBRE ============
         function toggleDarkMode() {
@@ -1273,13 +1277,48 @@
             });
 
             localStorage.setItem('comparateur-data', JSON.stringify(data));
+            
+            // Feedback visuel discret
+            showSaveIndicator();
         }
 
-        // Auto-sauvegarder toutes les 5 secondes
-        setInterval(autoSave, 5000);
+        // Indicateur de sauvegarde visuel
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            if (!indicator) {
+                const div = document.createElement('div');
+                div.id = 'save-indicator';
+                div.textContent = '💾 Sauvegardé';
+                div.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    background: rgba(39, 174, 96, 0.9);
+                    color: white;
+                    padding: 8px 15px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    z-index: 9999;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    pointer-events: none;
+                `;
+                document.body.appendChild(div);
+            }
+            
+            const ind = document.getElementById('save-indicator');
+            ind.style.opacity = '1';
+            setTimeout(() => {
+                ind.style.opacity = '0';
+            }, 1500);
+        }
 
-        // Sauvegarder avant de quitter
-        window.addEventListener('beforeunload', autoSave);
+        // Sauvegarder avant de quitter (refresh, fermeture, etc.)
+        window.addEventListener('beforeunload', (e) => {
+            autoSave();
+            // Ne PAS afficher de confirmation, juste sauvegarder
+        });
 
         // ============ IMPORT / EXPORT DES DONNÉES ============
         
