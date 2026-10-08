@@ -1,72 +1,64 @@
-// ⚠️ IMPORTANT : Incrémenter cette version à CHAQUE mise à jour !
-// Cela force le navigateur à télécharger la nouvelle version
-// Format : 'comparateur-prix-vX.X.X' (doit correspondre à la version de l'app)
-const CACHE_NAME = 'comparateur-prix-v1.3.1';
-const urlsToCache = [
+// Service worker — Comparateur de prix
+// La page HTML est toujours demandée au réseau d'abord (copie en cache si hors ligne),
+// donc une nouvelle version publiée est visible au prochain lancement, sans bricolage.
+// Changer VERSION quand les polices ou icônes changent.
+const VERSION = '2.0.0';
+const CACHE = `comparateur-prix-${VERSION}`;
+const PRECACHE = [
   './comparateur_prix.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './fonts/bsc-500.woff2',
+  './fonts/bsc-600.woff2',
+  './fonts/bsc-700.woff2'
 ];
 
-// Installation du Service Worker
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('✅ Cache ouvert');
-        return cache.addAll(urlsToCache);
-      })
-  );
-  self.skipWaiting();
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
-// Activation du Service Worker
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Suppression ancien cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Interception des requêtes (stratégie Cache First)
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Retourner depuis le cache si disponible
-        if (response) {
-          return response;
-        }
+function isPage(req, url) {
+  return req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('manifest.json');
+}
 
-        // Sinon, faire la requête réseau
-        return fetch(event.request).then((response) => {
-          // Ne pas mettre en cache les requêtes non-GET
-          if (!response || response.status !== 200 || event.request.method !== 'GET') {
-            return response;
-          }
+async function networkFirst(req) {
+  const cache = await caches.open(CACHE);
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000); // réseau du magasin pourri → on bascule sur le cache
+    const res = await fetch(req, { signal: ctrl.signal, cache: 'no-cache' });
+    clearTimeout(timer);
+    if (res.ok) cache.put(req, res.clone());
+    return res;
+  } catch {
+    return (await cache.match(req, { ignoreSearch: true }))
+      || (await cache.match('./comparateur_prix.html'))
+      || Response.error();
+  }
+}
 
-          // Cloner la réponse
-          const responseToCache = response.clone();
+async function cacheFirst(req) {
+  const cached = await caches.match(req);
+  if (cached) return cached;
+  const res = await fetch(req);
+  if (res.ok) (await caches.open(CACHE)).put(req, res.clone());
+  return res;
+}
 
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
-      })
-      .catch(() => {
-        // En cas d'échec, retourner une page hors ligne de base
-        return caches.match('./comparateur_prix.html');
-      })
-  );
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('service-worker.js')) return;
+  event.respondWith(isPage(req, url) ? networkFirst(req) : cacheFirst(req));
 });
