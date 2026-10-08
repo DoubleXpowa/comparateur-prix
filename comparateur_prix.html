@@ -1,1906 +1,1071 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="auto">
 <!--
     ========================================
-    📱 COMPARATEUR DE PRIX - AUCHAN vs LECLERC
+    🛒 COMPARATEUR DE PRIX — calculateur de courses multi-magasins
     ========================================
-    
-    VERSION ACTUELLE : v1.3.1
-    DATE : 24 Février 2026
-    
-    ⚠️ IMPORTANT - À CHAQUE MODIFICATION :
-    1. Incrémenter le numéro de version ci-dessus ET dans APP_VERSION (ligne ~1070)
-    2. Mettre à jour le bandeau de version en bas de page (ligne ~793)
-       Format : <span class="version-number">vX.X.X</span>
-       + Description des changements
-    3. ⚠️ CRUCIAL : Mettre à jour le CACHE_NAME dans service-worker.js (ligne 4)
-       Sinon l'app restera sur l'ancienne version !
-    
-    HISTORIQUE DES VERSIONS :
-    - v1.3.1 (24/02/2026) : FIX CRITIQUE - Données restaurées au chargement + Protection totale !
-    - v1.3.0 (24/02/2026) : Sauvegarde instantanée à chaque modification - AUCUNE perte possible !
-    - v1.2.2 (24/02/2026) : Pull-to-refresh vraiment bloqué + Bouton MAJ manuelle PC
-    - v1.2.1 (24/02/2026) : Ajout Import/Export des données (backup/restore complet)
-    - v1.2.0 (24/02/2026) : Désactivation refresh auto + Pull-to-refresh désactivé + Notification MAJ
-    - v1.1.2 (24/02/2026) : Fix auto-update + Gestion des caches améliorée
-    - v1.1.0 (24/02/2026) : Mode sombre + Historique + Gestion magasins + UI mobile optimisée
-    - v1.0.0 (23/02/2026) : Version initiale
-    
-    ========================================
+
+    VERSION : 2.0.0  (8 octobre 2026)
+
+    À CHAQUE MODIFICATION :
+      1. Changer APP_VERSION plus bas dans le <script>
+      2. Changer VERSION dans service-worker.js (sinon les polices/icônes
+         ne sont pas renouvelées — la page HTML, elle, est toujours prise
+         sur le réseau en priorité, donc plus besoin de vider les caches)
+
+    HISTORIQUE :
+    - 2.0.0 : Refonte complète. Nouveau moteur de promos (2ᵉ à −X %, N+M offerts,
+              lot N pour X €, cagnotte), calcul au centime, conseil « encore 1 pour
+              déclencher l'offre », UI en cartes pour mobile, onglets par magasin,
+              annulation après suppression, thème auto, sauvegarde fiable,
+              service worker network-first. Migration automatique des données v1.
+    - 1.3.1 : Données restaurées au chargement
+    - 1.3.0 : Sauvegarde à chaque modification
+    - 1.2.x : Import/Export, pull-to-refresh, MAJ manuelle
+    - 1.1.x : Mode sombre, historique, gestion des magasins
+    - 1.0.0 : Version initiale
 -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="description" content="Comparez vos prix entre Auchan et Leclerc en temps réel">
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Comparateur Prix">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-512.png">
-    <title>Comparateur Prix - Auchan vs Leclerc</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 10px;
-            transition: background 0.3s ease;
-            overscroll-behavior-y: contain; /* Désactive le pull-to-refresh */
-        }
-
-        body.dark-mode {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        }
-
-        body.dark-mode .container {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .store-section {
-            background: #1e1e1e;
-            color: #e0e0e0;
-        }
-
-        body.dark-mode th {
-            background: #2d2d2d;
-        }
-
-        body.dark-mode td {
-            border-bottom: 1px solid #3a3a3a;
-        }
-
-        body.dark-mode input {
-            background: #2d2d2d;
-            color: #e0e0e0;
-            border-color: #3a3a3a;
-        }
-
-        body.dark-mode .totals {
-            background: #2d2d2d;
-        }
-
-        body.dark-mode .grand-total {
-            background: linear-gradient(135deg, #d68910 0%, #c76d1f 100%);
-        }
-
-        body.dark-mode .info-box {
-            background: #2d3748;
-            border-left-color: #4299e1;
-            color: #e0e0e0;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            text-align: center;
-            color: white;
-            margin: 20px 0;
-            font-size: 24px;
-        }
-
-        .store-section {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .store-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .store-title {
-            font-size: 22px;
-            font-weight: bold;
-        }
-
-        .store-title.auchan {
-            color: #e74c3c;
-        }
-
-        .store-title.leclerc {
-            color: #3498db;
-        }
-
-        .store-title[contenteditable="true"] {
-            cursor: text;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .store-title[contenteditable="true"]:hover {
-            background: rgba(0,0,0,0.05);
-        }
-
-        .store-title[contenteditable="true"]:focus {
-            outline: 2px solid #3498db;
-            background: rgba(52, 152, 219, 0.1);
-        }
-
-        .add-btn {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-
-        .add-btn:hover {
-            background: #229954;
-            transform: translateY(-2px);
-        }
-
-        .clear-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-
-        .clear-btn:hover {
-            background: #c0392b;
-            transform: translateY(-2px);
-        }
-
-        .control-bar {
-            background: white;
-            border-radius: 15px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        body.dark-mode .control-bar {
-            background: #1e1e1e;
-        }
-
-        .control-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .icon-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .icon-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-
-        .icon-btn.danger {
-            background: #e74c3c;
-        }
-
-        .icon-btn.danger:hover {
-            background: #c0392b;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 60px;
-            height: 30px;
-            background: #ccc;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .toggle-switch.active {
-            background: #667eea;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 24px;
-            height: 24px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .toggle-switch.active .toggle-slider {
-            transform: translateX(30px);
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        body.dark-mode .modal-content {
-            background: #1e1e1e;
-            color: #e0e0e0;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 30px;
-            cursor: pointer;
-            color: #999;
-        }
-
-        .close-btn:hover {
-            color: #333;
-        }
-
-        body.dark-mode .close-btn:hover {
-            color: #e0e0e0;
-        }
-
-        .history-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        body.dark-mode .history-item {
-            background: #2d2d2d;
-        }
-
-        .history-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .history-date {
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .history-total {
-            font-size: 20px;
-            font-weight: bold;
-            color: #27ae60;
-        }
-
-        .store-manager-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-
-        body.dark-mode .store-manager-item {
-            background: #2d2d2d;
-        }
-
-        .add-store-form {
-            margin-top: 20px;
-            padding: 20px;
-            background: #e8f4f8;
-            border-radius: 10px;
-        }
-
-        body.dark-mode .add-store-form {
-            background: #2d3748;
-        }
-
-        .add-store-form input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .add-store-form select {
-            background: white;
-            font-family: inherit;
-        }
-
-        body.dark-mode .add-store-form select {
-            background: #2d2d2d;
-            color: #e0e0e0;
-        }
-
-        .add-store-form select option {
-            padding: 10px;
-            font-size: 16px;
-        }
-
-        body.dark-mode #historyDetailContent table {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode #historyDetailContent th {
-            border-bottom-color: #555;
-        }
-
-        body.dark-mode #historyDetailContent tr {
-            border-bottom-color: #444;
-        }
-
-        body.dark-mode #historyDetailContent > div {
-            background: #2d2d2d !important;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-bottom: 15px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        th {
-            background: #34495e;
-            color: white;
-            padding: 12px 8px;
-            text-align: left;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #ecf0f1;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: #3498db;
-        }
-
-        .delete-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .delete-btn:hover {
-            background: #c0392b;
-        }
-
-        .totals {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 15px;
-        }
-
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            font-size: 16px;
-        }
-
-        .total-row.main {
-            font-size: 20px;
-            font-weight: bold;
-            color: #2c3e50;
-            border-top: 2px solid #34495e;
-            padding-top: 12px;
-            margin-top: 8px;
-        }
-
-        .total-row.savings {
-            color: #27ae60;
-            font-weight: bold;
-        }
-
-        .grand-total {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            margin-top: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-        }
-
-        .grand-total h2 {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        .grand-total .amount {
-            font-size: 36px;
-            font-weight: bold;
-        }
-
-        .info-box {
-            background: #e8f4f8;
-            border-left: 4px solid #3498db;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 5px;
-            font-size: 13px;
-        }
-
-        .info-box strong {
-            display: block;
-            margin-bottom: 8px;
-            color: #2c3e50;
-        }
-
-        .info-box ul {
-            margin-left: 20px;
-            line-height: 1.8;
-        }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 20px;
-            }
-
-            .store-title {
-                font-size: 18px;
-            }
-
-            table {
-                font-size: 12px;
-            }
-
-            th, td {
-                padding: 8px 4px;
-            }
-
-            input {
-                padding: 6px;
-                font-size: 12px;
-            }
-
-            /* Responsive control bar pour mobile */
-            .control-bar {
-                padding: 10px;
-                gap: 10px;
-            }
-
-            .control-group {
-                flex-wrap: wrap;
-                gap: 8px;
-                justify-content: center;
-                width: 100%;
-            }
-
-            .icon-btn {
-                padding: 8px 12px;
-                font-size: 12px;
-                white-space: nowrap;
-                flex: 1;
-                min-width: 0;
-                max-width: 140px;
-            }
-
-            .toggle-switch {
-                width: 50px;
-                height: 26px;
-            }
-
-            .toggle-slider {
-                width: 20px;
-                height: 20px;
-            }
-
-            .toggle-switch.active .toggle-slider {
-                transform: translateX(24px);
-            }
-
-            /* Labels plus petits sur mobile */
-            .control-group span {
-                font-size: 12px;
-                white-space: nowrap;
-            }
-        }
-
-        /* Pour très petits écrans (téléphones en portrait) */
-        @media (max-width: 480px) {
-            .control-bar {
-                padding: 8px;
-            }
-
-            .icon-btn {
-                padding: 6px 10px;
-                font-size: 11px;
-                max-width: 110px;
-            }
-
-            .control-group {
-                gap: 6px;
-            }
-
-            .control-group span {
-                font-size: 11px;
-            }
-
-            /* Empêcher le débordement sur petits écrans */
-            .store-section {
-                padding: 15px 10px;
-            }
-
-            .store-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .store-header > div {
-                width: 100%;
-            }
-
-            .add-btn, .clear-btn {
-                font-size: 12px;
-                padding: 8px 12px;
-            }
-        }
-
-        /* Bandeau de version en bas */
-        .version-banner {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-            border-top: 1px solid #ddd;
-            margin-top: 30px;
-            border-radius: 10px 10px 0 0;
-        }
-
-        body.dark-mode .version-banner {
-            background: rgba(30, 30, 30, 0.9);
-            color: #aaa;
-            border-top-color: #444;
-        }
-
-        .version-banner strong {
-            color: #667eea;
-            font-weight: bold;
-        }
-
-        body.dark-mode .version-banner strong {
-            color: #8b9eff;
-        }
-
-        .version-number {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-right: 8px;
-            font-weight: bold;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Calculez le total de vos courses, promos comprises, magasin par magasin">
+<meta name="theme-color" content="#5B45E0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Courses">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="preload" href="fonts/bsc-700.woff2" as="font" type="font/woff2" crossorigin>
+<title>Comparateur de prix</title>
+<style>
+@font-face { font-family: "BSC"; src: url("fonts/bsc-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "BSC"; src: url("fonts/bsc-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "BSC"; src: url("fonts/bsc-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --bg: #ECEEF4;
+  --card: #FFFFFF;
+  --field: #F2F3F8;
+  --ink: #191B26;
+  --muted: #626779;
+  --line: #D9DCE7;
+  --brand: #5B45E0;
+  --brand-ink: #FFFFFF;
+  --save: #11794B;
+  --tag: #FFD43B;
+  --tag-ink: #2B2200;
+  --danger: #C4362B;
+  --shadow: 0 1px 2px rgb(20 22 40 / .06), 0 4px 14px rgb(20 22 40 / .05);
+  --num: "BSC", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111219; --card: #1B1D26; --field: #252834; --ink: #ECEDF3; --muted: #A0A5B8;
+    --line: #2F3242; --brand: #8D7DFF; --brand-ink: #130F2C; --save: #4BCB8E;
+    --danger: #FF7468; --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111219; --card: #1B1D26; --field: #252834; --ink: #ECEDF3; --muted: #A0A5B8;
+  --line: #2F3242; --brand: #8D7DFF; --brand-ink: #130F2C; --save: #4BCB8E;
+  --danger: #FF7468; --shadow: none; color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html, body { overscroll-behavior-y: none; } /* bloque le pull-to-refresh, sans JS */
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.4 var(--ui);
+  min-height: 100dvh; -webkit-tap-highlight-color: transparent;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 12px; }
+
+/* ---------- En-tête ---------- */
+header.top { padding: calc(10px + env(safe-area-inset-top)) 0 0; }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.top h1 { font: 700 26px/1.1 var(--num); letter-spacing: -.01em; }
+.round-btn {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--card); box-shadow: var(--shadow); font-size: 20px;
+}
+
+/* ---------- Onglets magasins ---------- */
+.tabs-bar { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 10px 0; }
+.tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 0 12px; max-width: 640px; margin: 0 auto; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 14px 8px 12px; border-radius: 12px; background: var(--card); box-shadow: var(--shadow);
+  border: 2px solid transparent; min-width: 120px; text-align: left;
+}
+.tab[aria-selected="true"] { border-color: var(--store, var(--brand)); }
+.tab-name { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--store, var(--brand)); flex: none; }
+.tab-total { font: 600 18px/1.1 var(--num); color: var(--muted); }
+.tab[aria-selected="true"] .tab-total { color: var(--ink); }
+
+/* ---------- Articles ---------- */
+.list { display: grid; gap: 10px; }
+.item {
+  background: var(--card); border-radius: 14px; padding: 8px 12px 10px; box-shadow: var(--shadow);
+  display: grid; gap: 8px;
+}
+.r1 { display: flex; align-items: center; gap: 8px; }
+.name {
+  flex: 1; min-width: 0; border: 0; background: transparent; font-size: 17px; font-weight: 600;
+  padding: 6px 0; border-bottom: 1.5px solid transparent; border-radius: 0;
+}
+.name:focus { outline: none; border-bottom-color: var(--brand); }
+.name::placeholder { color: var(--muted); font-weight: 500; }
+.del { width: 36px; height: 36px; border-radius: 50%; color: var(--muted); font-size: 18px; flex: none; }
+.del:hover { background: var(--field); color: var(--danger); }
+
+.r2 { display: grid; grid-template-columns: minmax(78px, 1fr) auto minmax(76px, auto); gap: 10px; align-items: center; }
+.price {
+  display: flex; align-items: center; background: var(--field); border-radius: 10px; padding: 0 10px; height: 44px;
+}
+.price input {
+  width: 100%; min-width: 0; border: 0; background: transparent; text-align: right;
+  font: 600 20px/1 var(--num); font-variant-numeric: tabular-nums;
+}
+.price input:focus { outline: none; }
+.price:focus-within { box-shadow: inset 0 0 0 2px var(--brand); }
+.price span { font: 600 18px var(--num); color: var(--muted); margin-left: 3px; }
+.qty { display: flex; align-items: center; background: var(--field); border-radius: 10px; height: 44px; }
+.qty button { width: 36px; height: 44px; font-size: 22px; font-weight: 500; color: var(--brand); }
+.qty input {
+  width: 34px; border: 0; background: transparent; text-align: center; font: 600 20px/1 var(--num);
+}
+.qty input:focus { outline: none; }
+.qty:focus-within { box-shadow: inset 0 0 0 2px var(--brand); }
+.lt { text-align: right; display: grid; justify-items: end; line-height: 1.1; }
+.lt-base { font: 500 14px var(--num); color: var(--muted); text-decoration: line-through; }
+.lt-pay { font: 700 22px var(--num); font-variant-numeric: tabular-nums; }
+.lt-base:empty { display: none; }
+
+.r3 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 30px; }
+/* Étiquette promo façon étiquette de rayon */
+.tag {
+  position: relative; background: var(--tag); color: var(--tag-ink);
+  font: 700 15px/1 var(--num); padding: 7px 11px 7px 18px;
+  clip-path: polygon(11px 0, 100% 0, 100% 100%, 11px 100%, 0 50%);
+  border-radius: 0 6px 6px 0;
+}
+.tag::before {
+  content: ""; position: absolute; left: 7px; top: 50%; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--card); transform: translateY(-50%);
+}
+.tag.off { background: transparent; color: var(--muted); clip-path: none; border: 1.5px dashed var(--line); border-radius: 8px; padding: 6px 10px; font: 600 14px/1 var(--ui); }
+.tag.off::before { display: none; }
+.hint { font-size: 13px; color: var(--save); font-weight: 600; }
+.hint.warn { color: var(--muted); font-weight: 500; }
+.cag { font-size: 13px; color: var(--brand); font-weight: 600; }
+
+.add-row {
+  width: 100%; margin-top: 10px; padding: 14px; border-radius: 14px; border: 2px dashed var(--line);
+  color: var(--muted); font-weight: 600;
+}
+.add-row:hover { border-color: var(--brand); color: var(--brand); }
+
+.empty { text-align: center; padding: 28px 16px 8px; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-size: 17px; margin-bottom: 4px; }
+
+/* ---------- Récap magasin ---------- */
+.recap { margin-top: 16px; background: var(--card); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+.recap-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; color: var(--muted); }
+.recap-row .num { font-size: 18px; font-weight: 600; color: var(--ink); }
+.recap-row.save .num, .recap-row.save { color: var(--save); }
+.recap-row.cagn .num, .recap-row.cagn { color: var(--brand); }
+.recap-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1.5px solid var(--line); margin-top: 8px; padding-top: 10px; gap: 12px; }
+.recap-total span:first-child { font-weight: 600; }
+.recap-total .num { font-size: 30px; font-weight: 700; }
+.recap-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+.link-btn { color: var(--muted); font-size: 14px; padding: 8px 4px; text-decoration: underline; text-underline-offset: 3px; }
+.link-btn.danger:hover { color: var(--danger); }
+
+/* ---------- Barre du bas ---------- */
+.bottom {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+}
+.bottom .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bt-label { font-size: 13px; color: var(--muted); }
+.bt-total { font: 700 30px/1 var(--num); font-variant-numeric: tabular-nums; }
+.bt-save { font-size: 13px; color: var(--save); font-weight: 600; }
+.fab {
+  background: var(--brand); color: var(--brand-ink); border-radius: 14px; height: 52px; padding: 0 18px;
+  font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.fab b { font-size: 24px; font-weight: 500; line-height: 0; }
+
+/* ---------- Feuilles (dialog) ---------- */
+dialog.sheet {
+  margin: auto auto 0; width: 100%; max-width: 640px; max-height: 90dvh; overflow: auto;
+  border: 0; border-radius: 20px 20px 0 0; background: var(--card); color: var(--ink);
+  padding: 0 0 env(safe-area-inset-bottom);
+}
+dialog.sheet::backdrop { background: rgb(8 9 18 / .55); }
+@media (min-width: 700px) { dialog.sheet { margin: auto; border-radius: 20px; } }
+@media (prefers-reduced-motion: no-preference) {
+  dialog.sheet[open] { animation: up .22s cubic-bezier(.2,.8,.2,1); }
+  @keyframes up { from { transform: translateY(40px); opacity: .4; } }
+}
+.sh-head {
+  position: sticky; top: 0; z-index: 1; background: var(--card); display: flex; align-items: center;
+  justify-content: space-between; padding: 14px 16px 10px; gap: 8px;
+}
+.sh-head h2 { font: 700 22px/1.1 var(--num); }
+.sh-body { padding: 4px 16px 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.close { width: 40px; height: 40px; border-radius: 50%; background: var(--field); font-size: 18px; flex: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 8px 12px; border-radius: 999px; background: var(--field); font-size: 14px; font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.field input, .field select {
+  height: 46px; border-radius: 10px; border: 0; background: var(--field); padding: 0 12px; font-size: 17px; color: var(--ink); font-weight: 500;
+  width: 100%; min-width: 0;
+}
+.field input:focus, .field select:focus { outline: none; box-shadow: inset 0 0 0 2px var(--brand); }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sub { font-size: 13px; color: var(--muted); }
+.preview { background: var(--field); border-radius: 12px; padding: 12px 14px; font-size: 15px; }
+.preview .num { font-size: 19px; font-weight: 700; }
+.btns { display: flex; gap: 10px; }
+.btn { flex: 1; height: 50px; border-radius: 12px; font-weight: 700; background: var(--field); }
+.btn.primary { background: var(--brand); color: var(--brand-ink); }
+.btn.danger { background: var(--danger); color: #fff; }
+.section-title { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: -6px; }
+
+.menu-list { display: grid; }
+.menu-item { display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--line); text-align: left; font-size: 16px; }
+.menu-item:last-child { border-bottom: 0; }
+.menu-item .ic { width: 28px; text-align: center; font-size: 20px; }
+.menu-item small { display: block; color: var(--muted); font-size: 13px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--field); border-radius: 12px; padding: 4px; }
+.seg button { height: 38px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.version { text-align: center; font-size: 12px; color: var(--muted); }
+
+.store-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; }
+.swatch { width: 40px; height: 40px; border-radius: 12px; background: var(--store); }
+.store-row input[type="text"] { height: 42px; border-radius: 10px; border: 0; background: var(--field); padding: 0 10px; font-size: 16px; min-width: 0; width: 100%; }
+.switch { position: relative; width: 48px; height: 28px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--line); transition: background .2s; pointer-events: none; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.switch input:checked + span { background: var(--brand); }
+.switch input:checked + span::after { transform: translateX(20px); }
+.switch input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.hist { display: grid; gap: 10px; }
+.hist-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--field); border-radius: 12px; padding: 12px 14px; text-align: left; width: 100%; }
+.hist-item .num { font-size: 22px; font-weight: 700; }
+.hist-stores { font-size: 13px; color: var(--muted); }
+.hist-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.hist-table td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.hist-table td:last-child { text-align: right; font-family: var(--num); font-size: 16px; font-weight: 600; white-space: nowrap; }
+.hist-table .sub { display: block; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 50;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: var(--ink); color: var(--card); border-radius: 12px; padding: 10px 10px 10px 16px;
+  display: flex; align-items: center; gap: 12px; max-width: calc(100% - 24px); width: max-content;
+  transition: opacity .2s, transform .2s; font-size: 15px;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { color: var(--tag); font-weight: 700; padding: 6px 8px; }
+.toast button:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🛒 Comparateur de Prix</h1>
 
-        <!-- Barre de contrôle -->
-        <div class="control-bar">
-            <div class="control-group">
-                <button class="icon-btn" onclick="openHistory()">
-                    📋 Historique
-                </button>
-                <button class="icon-btn" onclick="saveCurrentList()">
-                    💾 Sauvegarder
-                </button>
-                <button class="icon-btn" onclick="openStoreManager()">
-                    🏪 Gérer magasins
-                </button>
-                <button class="icon-btn" onclick="exportData()" style="background: #27ae60;">
-                    📤 Exporter
-                </button>
-                <button class="icon-btn" onclick="document.getElementById('importFile').click()" style="background: #e67e22;">
-                    📥 Importer
-                </button>
-                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
-            </div>
-            <div class="control-group">
-                <span style="font-weight: bold; color: white;">🌙 Mode sombre</span>
-                <div class="toggle-switch" id="darkModeToggle" onclick="toggleDarkMode()">
-                    <div class="toggle-slider"></div>
-                </div>
-            </div>
-        </div>
+<header class="top">
+  <div class="wrap">
+    <h1>Mes courses</h1>
+    <button class="round-btn" id="menuBtn" aria-label="Menu">☰</button>
+  </div>
+</header>
 
-        <div class="info-box">
-            <strong>📝 Comment utiliser les offres promo :</strong>
-            <ul>
-                <li><strong>1+1@50%</strong> = 1 acheté, le 2ème à -50%</li>
-                <li><strong>1+1@25%</strong> = 1 acheté, le 2ème à -25%</li>
-                <li><strong>2+1</strong> = 2 achetés, 1 offert</li>
-                <li>Fonctionne avec tous les % de 1 à 99 !</li>
-                <li><strong>⌨️ Appuyez sur Entrée</strong> pour ajouter une nouvelle ligne rapidement</li>
-                <li><strong>✏️ Cliquez sur les titres</strong> (Auchan/Leclerc) pour les renommer</li>
-                <li><strong>🗑️ Tout effacer</strong> pour réinitialiser une section avant vos courses</li>
-                <li><strong>💡 Réd. (%)</strong> : tapez directement le pourcentage (ex: 20 pour 20%)</li>
-            </ul>
-        </div>
+<nav class="tabs-bar" aria-label="Magasins">
+  <div class="tabs" id="tabs" role="tablist"></div>
+</nav>
 
-        <!-- Les sections des magasins seront générées dynamiquement ici -->
+<main class="wrap">
+  <div class="list" id="list"></div>
+  <div id="empty" class="empty" hidden>
+    <strong>Liste vide</strong>
+    Ajoute ton premier article, son prix et la quantité.
+  </div>
+  <button class="add-row" id="addRow">+ Ajouter un article</button>
 
-        <!-- GRAND TOTAL -->
-        <div class="grand-total">
-            <h2>TOTAL COMBINÉ</h2>
-            <div class="amount" id="grand-total">0.00 €</div>
-            <div style="margin-top: 15px; font-size: 14px;">
-                Économies totales : <span id="total-savings" style="font-weight: bold;">0.00 €</span>
-            </div>
-        </div>
+  <section class="recap" id="recap" aria-label="Total du magasin">
+    <div class="recap-row"><span>Sans promo</span><span class="num" id="rBase"></span></div>
+    <div class="recap-row save"><span>Économisé</span><span class="num" id="rSaved"></span></div>
+    <div class="recap-row cagn" id="rCagRow"><span>Cagnotté (sur ta carte)</span><span class="num" id="rCag"></span></div>
+    <div class="recap-total"><span id="rLabel">À payer</span><span class="num" id="rPay"></span></div>
+    <div class="recap-actions"><button class="link-btn danger" id="clearBtn">Vider la liste de ce magasin</button></div>
+  </section>
+</main>
 
-        <!-- Modal Historique -->
-        <div class="modal" id="historyModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📋 Historique des courses</h2>
-                    <button class="close-btn" onclick="closeHistory()">&times;</button>
-                </div>
-                <div id="historyList"></div>
-            </div>
-        </div>
-
-        <!-- Modal Gestion des magasins -->
-        <div class="modal" id="storeManagerModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>🏪 Gérer les magasins</h2>
-                    <button class="close-btn" onclick="closeStoreManager()">&times;</button>
-                </div>
-                <div id="storesList"></div>
-                <div class="add-store-form">
-                    <h3>➕ Ajouter un magasin</h3>
-                    <input type="text" id="newStoreName" placeholder="Nom du magasin (ex: Carrefour)">
-                    
-                    <label style="display: block; margin: 15px 0 5px 0; font-weight: bold;">Choisir un emoji :</label>
-                    <select id="newStoreEmoji" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; cursor: pointer;">
-                        <!-- Les options seront générées par JavaScript -->
-                    </select>
-                    
-                    <button class="add-btn" onclick="addNewStore()" style="width: 100%; margin-top: 15px;">Ajouter</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal Détail historique -->
-        <div class="modal" id="historyDetailModal">
-            <div class="modal-content" style="max-width: 800px;">
-                <div class="modal-header">
-                    <h2>📋 Détail de la liste</h2>
-                    <button class="close-btn" onclick="closeHistoryDetail()">&times;</button>
-                </div>
-                <div id="historyDetailContent"></div>
-            </div>
-        </div>
-
-        <!-- Modal de confirmation -->
-        <div class="modal" id="confirmModal">
-            <div class="modal-content" style="max-width: 400px;">
-                <div class="modal-header">
-                    <h2>⚠️ Confirmation</h2>
-                </div>
-                <p id="confirmMessage" style="margin: 20px 0; font-size: 16px;"></p>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button class="icon-btn" onclick="confirmNo()" style="background: #95a5a6;">Annuler</button>
-                    <button class="icon-btn danger" onclick="confirmYes()">Confirmer</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bandeau de version -->
-        <div class="version-banner">
-            <span class="version-number">v1.3.1</span>
-            <strong>Dernière mise à jour :</strong> 🛡️ FIX CRITIQUE - Vos données sont maintenant TOUJOURS restaurées (même après fermeture app) !
-            <button onclick="checkForUpdates()" style="margin-left: 15px; background: #667eea; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">
-                🔄 Vérifier les mises à jour
-            </button>
-        </div>
+<footer class="bottom">
+  <div class="wrap">
+    <div>
+      <div class="bt-label" id="btLabel">Total</div>
+      <div class="bt-total" id="btTotal">0,00 €</div>
+      <div class="bt-save" id="btSave"></div>
     </div>
-
-    <script>
-        // Données initiales
-        const initialData = {
-            auchan: [
-                {article: "fraise", prix: 0.99, qte: 3, red_euro: 0, red_pct: 0, offre: ""},
-                {article: "peche", prix: 0.99, qte: 4, red_euro: 0, red_pct: 0, offre: ""},
-                {article: "eau", prix: 1.62, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
-            ],
-            leclerc: [
-                {article: "pain complet", prix: 3.18, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
-                {article: "croissant", prix: 3.15, qte: 1, red_euro: 0, red_pct: 0, offre: ""},
-                {article: "kiri", prix: 2.99, qte: 2, red_euro: 0, red_pct: 0, offre: ""},
-            ]
-        };
-
-        // ============ GESTION DES MAGASINS ============
-        let stores = [];
-
-        // Emojis disponibles avec leurs couleurs associées
-        const storeEmojis = [
-            { emoji: '🔴', color: '#e74c3c', name: 'Rouge' },
-            { emoji: '🔵', color: '#3498db', name: 'Bleu' },
-            { emoji: '🟢', color: '#27ae60', name: 'Vert' },
-            { emoji: '🟡', color: '#f39c12', name: 'Jaune' },
-            { emoji: '🟠', color: '#e67e22', name: 'Orange' },
-            { emoji: '🟣', color: '#9b59b6', name: 'Violet' },
-            { emoji: '🟤', color: '#8b4513', name: 'Marron' },
-            { emoji: '⚫', color: '#2c3e50', name: 'Noir' },
-            { emoji: '⚪', color: '#95a5a6', name: 'Gris' },
-            { emoji: '🔶', color: '#e67e22', name: 'Losange Orange' },
-            { emoji: '🔷', color: '#3498db', name: 'Losange Bleu' },
-            { emoji: '💙', color: '#3498db', name: 'Cœur Bleu' },
-            { emoji: '💚', color: '#27ae60', name: 'Cœur Vert' },
-            { emoji: '💛', color: '#f39c12', name: 'Cœur Jaune' },
-            { emoji: '🧡', color: '#e67e22', name: 'Cœur Orange' },
-            { emoji: '💜', color: '#9b59b6', name: 'Cœur Violet' },
-            { emoji: '🏪', color: '#3498db', name: 'Supermarché' },
-            { emoji: '🛒', color: '#e74c3c', name: 'Caddie' },
-            { emoji: '🏬', color: '#9b59b6', name: 'Centre Commercial' },
-            { emoji: '🏢', color: '#34495e', name: 'Immeuble' }
-        ];
-
-        function getEmojiColor(emoji) {
-            const found = storeEmojis.find(e => e.emoji === emoji);
-            return found ? found.color : '#3498db';
-        }
-
-        // Calculer le prix avec offre promo
-        function calculatePrice(prix, qte, red_euro, red_pct, offre) {
-            prix = parseFloat(prix) || 0;
-            qte = parseInt(qte) || 0;
-            red_euro = parseFloat(red_euro) || 0;
-            red_pct = parseFloat(red_pct) || 0;
-            offre = (offre || "").trim().toUpperCase();
-
-            // Convertir le pourcentage (0-100) en décimal (0-1)
-            red_pct = red_pct / 100;
-
-            // Prix de base avec réductions simples
-            const prixBase = prix * qte;
-            const apresRedEuro = prixBase - (red_euro * qte);
-            const apresRedPct = apresRedEuro * (1 - red_pct);
-
-            // Si pas d'offre promo
-            if (!offre) {
-                return apresRedPct;
-            }
-
-            // Offre 2+1 (2 achetés, 1 offert)
-            if (offre === "2+1") {
-                if (qte >= 3) {
-                    return prix * (Math.floor(qte / 3) * 2 + (qte % 3));
-                }
-                return apresRedPct;
-            }
-
-            // Offre 1+1@X% (1 acheté, le 2ème à -X%)
-            if (offre.startsWith("1+1@")) {
-                const match = offre.match(/1\+1@(\d+)%?/);
-                if (match && qte >= 2) {
-                    const pct = parseInt(match[1]);
-                    const prixSecond = 1 - (pct / 100);
-                    return prix * (Math.floor(qte / 2) * (1 + prixSecond) + (qte % 2));
-                }
-                return apresRedPct;
-            }
-
-            return apresRedPct;
-        }
-
-        // Ajouter une ligne
-        function addRow(store) {
-            const tbody = document.getElementById(`${store}-body`);
-            const row = tbody.insertRow();
-            row.dataset.store = store; // Marquer la ligne avec le magasin
-            
-            // Détection mobile pour quantité vide par défaut
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const defaultQty = isMobile ? '' : '1';
-            
-            row.innerHTML = `
-                <td><input type="text" placeholder="Article" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="1" min="0" placeholder="1" value="${defaultQty}" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="0.01" min="0" placeholder="0.00" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="number" step="1" min="0" max="100" placeholder="%" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td><input type="text" placeholder="1+1@50%" oninput="calculate(); autoSave();" onkeydown="handleEnter(event, '${store}')"></td>
-                <td style="font-weight: bold; color: #27ae60;">0.00 €</td>
-                <td><button class="delete-btn" onclick="deleteRow(this)">✕</button></td>
-            `;
-            calculate();
-            autoSave(); // Sauvegarder après ajout
-            // Focus sur le premier input de la nouvelle ligne
-            row.cells[0].querySelector('input').focus();
-        }
-
-        // Gérer la touche Entrée
-        function handleEnter(event, store) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                addRow(store);
-            }
-        }
-
-        // Sauvegarder le nom du magasin
-        function saveTitle(store) {
-            const titleElement = document.getElementById(`${store}-title`);
-            const title = titleElement.textContent;
-            localStorage.setItem(`${store}-title`, title);
-            
-            // Mettre à jour le label du total
-            updateTotalLabel(store, title);
-        }
-
-        // Mettre à jour le label du total
-        function updateTotalLabel(store, title) {
-            const labelElement = document.getElementById(`${store}-total-label`);
-            // Extraire le nom sans l'emoji
-            const cleanTitle = title.replace(/🔴|🔵/g, '').trim().toUpperCase();
-            labelElement.textContent = `TOTAL ${cleanTitle} :`;
-        }
-
-        // Supprimer une ligne
-        function deleteRow(btn) {
-            btn.closest('tr').remove();
-            calculate();
-            autoSave(); // Sauvegarder après suppression
-        }
-
-        // Effacer toutes les lignes d'une section
-        function clearAll(store) {
-            if (confirm(`Êtes-vous sûr de vouloir effacer tous les articles de ${store === 'auchan' ? 'Auchan' : 'Leclerc'} ?`)) {
-                const tbody = document.getElementById(`${store}-body`);
-                tbody.innerHTML = '';
-                calculate();
-                autoSave(); // Sauvegarder après effacement
-            }
-        }
-
-        // Calculer tous les totaux
-        function calculate() {
-            let grandTotalAmount = 0;
-            let grandSavingsAmount = 0;
-
-            stores.filter(s => s.enabled).forEach(store => {
-                const tbody = document.getElementById(`${store.id}-body`);
-                if (!tbody) return;
-
-                const rows = tbody.querySelectorAll('tr');
-                
-                let totalBase = 0;
-                let totalFinal = 0;
-
-                rows.forEach(row => {
-                    const inputs = row.querySelectorAll('input');
-                    const prix = parseFloat(inputs[1].value) || 0;
-                    const qte = parseInt(inputs[2].value) || 0;
-                    const red_euro = parseFloat(inputs[3].value) || 0;
-                    const red_pct = parseFloat(inputs[4].value) || 0;
-                    const offre = inputs[5].value;
-
-                    const prixLigne = calculatePrice(prix, qte, red_euro, red_pct, offre);
-                    row.cells[6].textContent = prixLigne.toFixed(2) + ' €';
-
-                    totalBase += prix * qte;
-                    totalFinal += prixLigne;
-                });
-
-                const savings = totalBase - totalFinal;
-
-                const baseEl = document.getElementById(`${store.id}-base`);
-                const savingsEl = document.getElementById(`${store.id}-savings`);
-                const totalEl = document.getElementById(`${store.id}-total`);
-
-                if (baseEl) baseEl.textContent = totalBase.toFixed(2) + ' €';
-                if (savingsEl) savingsEl.textContent = savings.toFixed(2) + ' €';
-                if (totalEl) totalEl.textContent = totalFinal.toFixed(2) + ' €';
-
-                grandTotalAmount += totalFinal;
-                grandSavingsAmount += savings;
-            });
-
-            document.getElementById('grand-total').textContent = grandTotalAmount.toFixed(2) + ' €';
-            document.getElementById('total-savings').textContent = grandSavingsAmount.toFixed(2) + ' €';
-        }
-
-        // Initialiser avec données d'exemple
-        function init() {
-            // Charger le mode sombre
-            loadDarkMode();
-
-            // RESTAURER les données si un backup existe (après mise à jour)
-            const backup = sessionStorage.getItem('backup-before-update');
-            if (backup) {
-                try {
-                    const backupData = JSON.parse(backup);
-                    console.log('🔄 Restauration des données après mise à jour...');
-                    
-                    // Restaurer toutes les données
-                    if (backupData.comparateurData) {
-                        localStorage.setItem('comparateur-data', backupData.comparateurData);
-                    }
-                    if (backupData.shoppingHistory) {
-                        localStorage.setItem('shopping-history', backupData.shoppingHistory);
-                    }
-                    if (backupData.customStores) {
-                        localStorage.setItem('custom-stores', backupData.customStores);
-                    }
-                    if (backupData.darkMode) {
-                        localStorage.setItem('darkMode', backupData.darkMode);
-                    }
-                    if (backupData.appVersion) {
-                        localStorage.setItem('app-version', backupData.appVersion);
-                    }
-                    
-                    // Restaurer les titres
-                    if (backupData.titles) {
-                        Object.keys(backupData.titles).forEach(storeId => {
-                            localStorage.setItem(`${storeId}-title`, backupData.titles[storeId]);
-                        });
-                    }
-                    
-                    // Supprimer le backup pour ne pas le restaurer à chaque fois
-                    sessionStorage.removeItem('backup-before-update');
-                    console.log('✅ Données restaurées avec succès !');
-                } catch (error) {
-                    console.error('❌ Erreur lors de la restauration:', error);
-                }
-            }
-
-            // Initialiser les magasins
-            initStores();
-
-            // Charger les titres sauvegardés
-            stores.forEach(store => {
-                const savedTitle = localStorage.getItem(`${store.id}-title`);
-                const titleElement = document.getElementById(`${store.id}-title`);
-                if (titleElement && savedTitle) {
-                    titleElement.textContent = savedTitle;
-                    updateTotalLabel(store.id, savedTitle);
-                } else if (titleElement) {
-                    // Initialiser avec le titre par défaut
-                    const defaultTitle = titleElement.textContent;
-                    updateTotalLabel(store.id, defaultTitle);
-                }
-            });
-
-            // CHARGER LES DONNÉES SAUVEGARDÉES depuis localStorage
-            const savedData = localStorage.getItem('comparateur-data');
-            
-            if (savedData) {
-                try {
-                    const data = JSON.parse(savedData);
-                    console.log('📂 Chargement des données sauvegardées...');
-                    
-                    // Charger les données pour chaque magasin
-                    Object.keys(data).forEach(storeId => {
-                        const tbody = document.getElementById(`${storeId}-body`);
-                        if (tbody && data[storeId] && data[storeId].length > 0) {
-                            data[storeId].forEach(item => {
-                                addRow(storeId);
-                                const lastRow = tbody.lastElementChild;
-                                const inputs = lastRow.querySelectorAll('input');
-                                inputs[0].value = item.article || '';
-                                inputs[1].value = item.prix || '';
-                                inputs[2].value = item.qte || '';
-                                inputs[3].value = item.red_euro || '';
-                                inputs[4].value = item.red_pct || '';
-                                inputs[5].value = item.offre || '';
-                            });
-                        }
-                    });
-                    
-                    console.log('✅ Données chargées avec succès !');
-                } catch (error) {
-                    console.error('❌ Erreur lors du chargement des données:', error);
-                    // Si erreur, charger les données d'exemple
-                    loadInitialData();
-                }
-            } else {
-                // Pas de données sauvegardées, charger les données d'exemple
-                console.log('📝 Première utilisation - Chargement des données d\'exemple');
-                loadInitialData();
-            }
-            
-            calculate();
-        }
-
-        // Charger les données d'exemple initiales
-        function loadInitialData() {
-            Object.keys(initialData).forEach(storeId => {
-                const tbody = document.getElementById(`${storeId}-body`);
-                if (tbody && initialData[storeId]) {
-                    initialData[storeId].forEach(item => {
-                        addRow(storeId);
-                        const lastRow = tbody.lastElementChild;
-                        const inputs = lastRow.querySelectorAll('input');
-                        inputs[0].value = item.article;
-                        inputs[1].value = item.prix;
-                        inputs[2].value = item.qte;
-                        inputs[3].value = item.red_euro;
-                        inputs[4].value = item.red_pct;
-                        inputs[5].value = item.offre;
-                    });
-                }
-            });
-        }
-
-        // ============ PWA FEATURES ============
-        
-        // Version de l'application
-        const APP_VERSION = 'v1.3.1';
-        
-        // ============ MODE SOMBRE ============
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const toggle = document.getElementById('darkModeToggle');
-            toggle.classList.toggle('active');
-            
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('darkMode', isDark);
-        }
-
-        // Charger le mode sombre au démarrage
-        function loadDarkMode() {
-            const isDark = localStorage.getItem('darkMode') === 'true';
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                document.getElementById('darkModeToggle').classList.add('active');
-            }
-        }
-        
-        // Enregistrer le Service Worker avec notification de mise à jour (SANS refresh auto)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Vérifier la version et notifier si nécessaire
-                const lastVersion = localStorage.getItem('app-version');
-                
-                if (lastVersion && lastVersion !== APP_VERSION) {
-                    console.log(`Mise à jour disponible : ${lastVersion} → ${APP_VERSION}`);
-                    
-                    // Afficher une notification de mise à jour disponible
-                    showUpdateNotification(lastVersion, APP_VERSION);
-                } else if (!lastVersion) {
-                    // Première installation
-                    localStorage.setItem('app-version', APP_VERSION);
-                }
-                
-                // Enregistrer le service worker normalement
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => {
-                        console.log('✅ Service Worker enregistré');
-                        
-                        // Vérifier les mises à jour du SW
-                        reg.addEventListener('updatefound', () => {
-                            const newWorker = reg.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Nouvelle version disponible
-                                    showUpdateNotification(lastVersion, APP_VERSION);
-                                }
-                            });
-                        });
-                    })
-                    .catch(err => console.log('❌ Erreur Service Worker:', err));
-            });
-        }
-
-        // Afficher une notification de mise à jour
-        function showUpdateNotification(oldVersion, newVersion) {
-            const notification = document.createElement('div');
-            notification.id = 'update-notification';
-            notification.innerHTML = `
-                <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center; animation: slideDown 0.3s ease;">
-                    <div style="font-weight: bold; margin-bottom: 8px;">🎉 Nouvelle version disponible !</div>
-                    <div style="font-size: 14px; margin-bottom: 12px;">${oldVersion || 'ancienne'} → ${newVersion}</div>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button onclick="applyUpdate()" style="background: white; color: #667eea; border: none; padding: 8px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">Mettre à jour</button>
-                        <button onclick="closeUpdateNotification()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer;">Plus tard</button>
-                    </div>
-                </div>
-                <style>
-                    @keyframes slideDown {
-                        from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
-                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                    }
-                </style>
-            `;
-            document.body.appendChild(notification);
-        }
-
-        // Fermer la notification
-        function closeUpdateNotification() {
-            const notification = document.getElementById('update-notification');
-            if (notification) {
-                notification.style.animation = 'slideDown 0.3s ease reverse';
-                setTimeout(() => notification.remove(), 300);
-            }
-        }
-
-        // Appliquer la mise à jour (uniquement quand l'utilisateur clique)
-        function applyUpdate() {
-            console.log('🔄 Application de la mise à jour...');
-            
-            // Désinscrire tous les anciens service workers
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                registrations.forEach(registration => {
-                    registration.unregister();
-                    console.log('✅ Ancien Service Worker désinstallé');
-                });
-            });
-            
-            // Vider tous les caches
-            caches.keys().then(cacheNames => {
-                return Promise.all(
-                    cacheNames.map(cacheName => {
-                        console.log(`🗑️ Suppression du cache: ${cacheName}`);
-                        return caches.delete(cacheName);
-                    })
-                );
-            }).then(() => {
-                // Sauvegarder la nouvelle version
-                localStorage.setItem('app-version', APP_VERSION);
-                console.log('✅ Mise à jour appliquée');
-                
-                // Afficher message et recharger SEULEMENT quand l'utilisateur clique
-                alert('✅ Mise à jour appliquée ! La page va se recharger.');
-                window.location.reload(true);
-            });
-        }
-
-        // Vérification manuelle des mises à jour (pour PC ou si notification ratée)
-        function checkForUpdates() {
-            console.log('🔍 Vérification manuelle des mises à jour...');
-            
-            // IMPORTANT : Sauvegarder toutes les données AVANT de vider le cache
-            const backupData = {
-                comparateurData: localStorage.getItem('comparateur-data'),
-                shoppingHistory: localStorage.getItem('shopping-history'),
-                customStores: localStorage.getItem('custom-stores'),
-                darkMode: localStorage.getItem('darkMode'),
-                appVersion: localStorage.getItem('app-version'),
-                titles: {}
-            };
-            
-            // Sauvegarder tous les titres personnalisés
-            stores.forEach(store => {
-                const title = localStorage.getItem(`${store.id}-title`);
-                if (title) {
-                    backupData.titles[store.id] = title;
-                }
-            });
-            
-            // Stocker le backup dans sessionStorage (survit au reload mais pas à la fermeture)
-            sessionStorage.setItem('backup-before-update', JSON.stringify(backupData));
-            
-            // Forcer le rechargement du service worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    if (registrations.length > 0) {
-                        registrations.forEach(reg => reg.update());
-                    }
-                });
-            }
-            
-            // Vider UNIQUEMENT les caches (PAS le localStorage)
-            caches.keys().then(cacheNames => {
-                return Promise.all(
-                    cacheNames.map(cacheName => caches.delete(cacheName))
-                );
-            }).then(() => {
-                alert('🔄 Vérification en cours...\n\nLa page va se recharger pour récupérer la dernière version.\n\n✅ Vos données de courses sont préservées !');
-                // Hard reload pour forcer le téléchargement
-                window.location.reload(true);
-            });
-        }
-
-        // Prompt d'installation PWA
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            showInstallButton();
-        });
-
-        function showInstallButton() {
-            const installDiv = document.createElement('div');
-            installDiv.id = 'install-prompt';
-            installDiv.innerHTML = `
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; box-shadow: 0 -4px 20px rgba(0,0,0,0.3);">
-                    <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Installer l'application ?</p>
-                    <p style="margin: 0 0 15px 0; font-size: 14px;">Accédez rapidement depuis votre écran d'accueil</p>
-                    <button onclick="installApp()" style="background: white; color: #667eea; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; margin-right: 10px; font-size: 14px;">Installer</button>
-                    <button onclick="closeInstallPrompt()" style="background: transparent; color: white; border: 2px solid white; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 14px;">Plus tard</button>
-                </div>
-            `;
-            document.body.appendChild(installDiv);
-        }
-
-        function installApp() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('✅ App installée');
-                    }
-                    deferredPrompt = null;
-                    closeInstallPrompt();
-                });
-            }
-        }
-
-        function closeInstallPrompt() {
-            const prompt = document.getElementById('install-prompt');
-            if (prompt) {
-                prompt.remove();
-            }
-        }
-
-        // Sauvegarder automatiquement toutes les données
-        function autoSave() {
-            const data = {};
-
-            stores.filter(s => s.enabled).forEach(store => {
-                data[store.id] = [];
-                const tbody = document.getElementById(`${store.id}-body`);
-                if (!tbody) return;
-
-                const rows = tbody.querySelectorAll('tr');
-                rows.forEach(row => {
-                    const inputs = row.querySelectorAll('input');
-                    data[store.id].push({
-                        article: inputs[0].value,
-                        prix: inputs[1].value,
-                        qte: inputs[2].value,
-                        red_euro: inputs[3].value,
-                        red_pct: inputs[4].value,
-                        offre: inputs[5].value
-                    });
-                });
-            });
-
-            localStorage.setItem('comparateur-data', JSON.stringify(data));
-            
-            // Feedback visuel discret
-            showSaveIndicator();
-        }
-
-        // Indicateur de sauvegarde visuel
-        function showSaveIndicator() {
-            const indicator = document.getElementById('save-indicator');
-            if (!indicator) {
-                const div = document.createElement('div');
-                div.id = 'save-indicator';
-                div.textContent = '💾 Sauvegardé';
-                div.style.cssText = `
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    background: rgba(39, 174, 96, 0.9);
-                    color: white;
-                    padding: 8px 15px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    z-index: 9999;
-                    opacity: 0;
-                    transition: opacity 0.3s;
-                    pointer-events: none;
-                `;
-                document.body.appendChild(div);
-            }
-            
-            const ind = document.getElementById('save-indicator');
-            ind.style.opacity = '1';
-            setTimeout(() => {
-                ind.style.opacity = '0';
-            }, 1500);
-        }
-
-        // Sauvegarder avant de quitter (refresh, fermeture, etc.)
-        window.addEventListener('beforeunload', (e) => {
-            autoSave();
-            // Ne PAS afficher de confirmation, juste sauvegarder
-        });
-
-        // ============ IMPORT / EXPORT DES DONNÉES ============
-        
-        function exportData() {
-            // Récupérer toutes les données stockées
-            const exportData = {
-                version: APP_VERSION,
-                exportDate: new Date().toISOString(),
-                data: {
-                    currentList: localStorage.getItem('comparateur-data'),
-                    shoppingHistory: localStorage.getItem('shopping-history'),
-                    customStores: localStorage.getItem('custom-stores'),
-                    darkMode: localStorage.getItem('darkMode'),
-                    titles: {}
-                }
-            };
-            
-            // Récupérer les titres personnalisés des magasins
-            stores.forEach(store => {
-                const title = localStorage.getItem(`${store.id}-title`);
-                if (title) {
-                    exportData.data.titles[store.id] = title;
-                }
-            });
-            
-            // Créer le fichier JSON
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
-            // Créer un lien de téléchargement
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            
-            // Nom du fichier avec date
-            const dateStr = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
-            link.download = `comparateur-prix-backup-${dateStr}.json`;
-            
-            // Déclencher le téléchargement
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            alert('✅ Données exportées avec succès !\n\nLe fichier a été téléchargé.');
-        }
-        
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    
-                    // Vérifier que c'est bien un export de cette app
-                    if (!importedData.version || !importedData.data) {
-                        throw new Error('Format de fichier invalide');
-                    }
-                    
-                    // Demander confirmation
-                    if (!confirm(`⚠️ Importer les données ?\n\nCela va REMPLACER vos données actuelles par celles du fichier.\n\nExporté le : ${new Date(importedData.exportDate).toLocaleString('fr-FR')}\nVersion : ${importedData.version}\n\nVoulez-vous continuer ?`)) {
-                        event.target.value = ''; // Reset input
-                        return;
-                    }
-                    
-                    // Restaurer les données
-                    if (importedData.data.currentList) {
-                        localStorage.setItem('comparateur-data', importedData.data.currentList);
-                    }
-                    if (importedData.data.shoppingHistory) {
-                        localStorage.setItem('shopping-history', importedData.data.shoppingHistory);
-                    }
-                    if (importedData.data.customStores) {
-                        localStorage.setItem('custom-stores', importedData.data.customStores);
-                    }
-                    if (importedData.data.darkMode) {
-                        localStorage.setItem('darkMode', importedData.data.darkMode);
-                    }
-                    
-                    // Restaurer les titres personnalisés
-                    if (importedData.data.titles) {
-                        Object.keys(importedData.data.titles).forEach(storeId => {
-                            localStorage.setItem(`${storeId}-title`, importedData.data.titles[storeId]);
-                        });
-                    }
-                    
-                    event.target.value = ''; // Reset input
-                    
-                    alert('✅ Données importées avec succès !\n\nLa page va se recharger pour appliquer les changements.');
-                    window.location.reload();
-                    
-                } catch (error) {
-                    alert('❌ Erreur lors de l\'import !\n\n' + error.message + '\n\nVérifiez que le fichier est bien un export de cette application.');
-                    event.target.value = ''; // Reset input
-                }
-            };
-            
-            reader.readAsText(file);
-        }
-
-        // ============ HISTORIQUE DES COURSES ============
-        function saveCurrentList() {
-            const timestamp = new Date().toISOString();
-            const date = new Date().toLocaleDateString('fr-FR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            let total = 0;
-            const data = {};
-
-            stores.filter(s => s.enabled).forEach(store => {
-                const totalEl = document.getElementById(`${store.id}-total`);
-                if (totalEl) {
-                    total += parseFloat(totalEl.textContent) || 0;
-                }
-
-                data[store.id] = [];
-                const tbody = document.getElementById(`${store.id}-body`);
-                if (!tbody) return;
-
-                const rows = tbody.querySelectorAll('tr');
-                rows.forEach(row => {
-                    const inputs = row.querySelectorAll('input');
-                    if (inputs[0].value) { // Si article non vide
-                        data[store.id].push({
-                            article: inputs[0].value,
-                            prix: inputs[1].value,
-                            qte: inputs[2].value,
-                            red_euro: inputs[3].value,
-                            red_pct: inputs[4].value,
-                            offre: inputs[5].value
-                        });
-                    }
-                });
-            });
-
-            const listItem = {
-                timestamp,
-                date,
-                total: total.toFixed(2),
-                data
-            };
-
-            // Récupérer l'historique existant
-            let history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
-            history.unshift(listItem); // Ajouter au début
-            
-            // Limiter à 50 listes
-            if (history.length > 50) {
-                history = history.slice(0, 50);
-            }
-
-            localStorage.setItem('shopping-history', JSON.stringify(history));
-            
-            alert('✅ Liste sauvegardée dans l\'historique !');
-        }
-
-        function openHistory() {
-            const modal = document.getElementById('historyModal');
-            modal.classList.add('active');
-            displayHistory();
-        }
-
-        function closeHistory() {
-            document.getElementById('historyModal').classList.remove('active');
-        }
-
-        function displayHistory() {
-            const history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
-            const listDiv = document.getElementById('historyList');
-
-            if (history.length === 0) {
-                listDiv.innerHTML = '<p style="text-align: center; color: #999;">Aucune course sauvegardée</p>';
-                return;
-            }
-
-            listDiv.innerHTML = history.map((item, index) => `
-                <div class="history-item" onclick="loadHistoryItem(${index})">
-                    <div class="history-date">${item.date}</div>
-                    <div class="history-total">${item.total} €</div>
-                    <button class="delete-btn" onclick="event.stopPropagation(); deleteHistoryItem(${index})" style="margin-top: 10px;">🗑️ Supprimer</button>
-                </div>
-            `).join('');
-        }
-
-        function loadHistoryItem(index) {
-            const history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
-            const item = history[index];
-
-            // Créer le contenu de la modal
-            let html = `<div style="margin-bottom: 20px;">
-                <p style="font-size: 18px; font-weight: bold; color: #667eea;">${item.date}</p>
-                <p style="font-size: 24px; font-weight: bold; color: #27ae60;">Total : ${item.total} €</p>
-            </div>`;
-
-            // Afficher les articles par magasin
-            Object.keys(item.data).forEach(storeId => {
-                if (item.data[storeId] && item.data[storeId].length > 0) {
-                    const storeName = storeId.charAt(0).toUpperCase() + storeId.slice(1);
-                    html += `
-                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px;">
-                            <h3 style="margin-bottom: 15px;">${storeName}</h3>
-                            <table style="width: 100%; font-size: 14px;">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid #ddd;">
-                                        <th style="text-align: left; padding: 8px;">Article</th>
-                                        <th style="text-align: center; padding: 8px;">Prix</th>
-                                        <th style="text-align: center; padding: 8px;">Qté</th>
-                                        <th style="text-align: center; padding: 8px;">Réd. €</th>
-                                        <th style="text-align: center; padding: 8px;">Réd. %</th>
-                                        <th style="text-align: center; padding: 8px;">Offre</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-                    
-                    item.data[storeId].forEach(product => {
-                        html += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 8px;">${product.article}</td>
-                                <td style="text-align: center; padding: 8px;">${product.prix} €</td>
-                                <td style="text-align: center; padding: 8px;">${product.qte}</td>
-                                <td style="text-align: center; padding: 8px;">${product.red_euro || '-'}</td>
-                                <td style="text-align: center; padding: 8px;">${product.red_pct || '-'}</td>
-                                <td style="text-align: center; padding: 8px;">${product.offre || '-'}</td>
-                            </tr>`;
-                    });
-                    
-                    html += `</tbody></table></div>`;
-                }
-            });
-
-            document.getElementById('historyDetailContent').innerHTML = html;
-            document.getElementById('historyDetailModal').classList.add('active');
-        }
-
-        function closeHistoryDetail() {
-            document.getElementById('historyDetailModal').classList.remove('active');
-        }
-
-        function deleteHistoryItem(index) {
-            let history = JSON.parse(localStorage.getItem('shopping-history') || '[]');
-            history.splice(index, 1);
-            localStorage.setItem('shopping-history', JSON.stringify(history));
-            displayHistory();
-        }
-
-        function renderStores() {
-            const container = document.querySelector('.container');
-            
-            // Supprimer les anciennes sections
-            document.querySelectorAll('.store-section').forEach(el => el.remove());
-
-            // Recréer les sections pour les magasins actifs
-            stores.filter(s => s.enabled).forEach(store => {
-                const section = createStoreSection(store);
-                container.insertBefore(section, document.querySelector('.grand-total'));
-            });
-
-            calculate();
-        }
-
-        function createStoreSection(store) {
-            const section = document.createElement('div');
-            section.className = 'store-section';
-            const storeColor = getEmojiColor(store.emoji);
-            
-            section.innerHTML = `
-                <div class="store-header">
-                    <div class="store-title" contenteditable="true" id="${store.id}-title" onblur="saveTitle('${store.id}')" style="color: ${storeColor};">${store.emoji} ${store.name}</div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="clear-btn" onclick="clearAll('${store.id}')" title="Effacer tous les articles">🗑️ Tout effacer</button>
-                        <button class="add-btn" onclick="addRow('${store.id}')">+ Ajouter un article</button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Article</th>
-                                <th>Prix (€)</th>
-                                <th>Qté</th>
-                                <th>Réd. (€)</th>
-                                <th>Réd. (%)</th>
-                                <th>Offre</th>
-                                <th>Total</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="${store.id}-body"></tbody>
-                    </table>
-                </div>
-                <div class="totals">
-                    <div class="total-row">
-                        <span>Prix sans réduction :</span>
-                        <span id="${store.id}-base">0.00 €</span>
-                    </div>
-                    <div class="total-row savings">
-                        <span>💰 Économies :</span>
-                        <span id="${store.id}-savings">0.00 €</span>
-                    </div>
-                    <div class="total-row main">
-                        <span id="${store.id}-total-label">TOTAL ${store.name.toUpperCase()} :</span>
-                        <span id="${store.id}-total">0.00 €</span>
-                    </div>
-                </div>
-            `;
-            return section;
-        }
-
-        function openStoreManager() {
-            document.getElementById('storeManagerModal').classList.add('active');
-            
-            // Remplir le sélecteur d'emoji
-            const emojiSelect = document.getElementById('newStoreEmoji');
-            emojiSelect.innerHTML = storeEmojis.map(e => 
-                `<option value="${e.emoji}">${e.emoji} ${e.name}</option>`
-            ).join('');
-            
-            displayStoresList();
-            
-            // Ajouter la délégation d'événements sur le conteneur
-            const storesList = document.getElementById('storesList');
-            storesList.onclick = function(e) {
-                const btn = e.target.closest('button[data-action]');
-                if (!btn) return;
-                
-                const action = btn.getAttribute('data-action');
-                const index = parseInt(btn.getAttribute('data-index'));
-                
-                if (action === 'toggle') {
-                    toggleStore(index);
-                } else if (action === 'remove') {
-                    removeStore(index);
-                }
-            };
-        }
-
-        function closeStoreManager() {
-            document.getElementById('storeManagerModal').classList.remove('active');
-        }
-
-        function displayStoresList() {
-            const listDiv = document.getElementById('storesList');
-            listDiv.innerHTML = stores.map((store, index) => {
-                const storeColor = getEmojiColor(store.emoji);
-                return `
-                <div class="store-manager-item">
-                    <div>
-                        <strong style="color: ${storeColor};">${store.emoji} ${store.name}</strong>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="icon-btn ${store.enabled ? '' : 'danger'}" data-action="toggle" data-index="${index}">
-                            ${store.enabled ? '✅ Activé' : '❌ Désactivé'}
-                        </button>
-                        <button class="icon-btn danger" data-action="remove" data-index="${index}">🗑️ Supprimer</button>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        function toggleStore(index) {
-            stores[index].enabled = !stores[index].enabled;
-            localStorage.setItem('custom-stores', JSON.stringify(stores));
-            displayStoresList();
-            renderStores();
-        }
-
-        function removeStore(index) {
-            console.log('removeStore called with index:', index);
-            console.log('Store to remove:', stores[index]);
-            
-            // Utiliser la modal personnalisée au lieu de confirm()
-            showConfirm(`Voulez-vous vraiment supprimer ${stores[index].name} ?`, () => {
-                stores.splice(index, 1);
-                localStorage.setItem('custom-stores', JSON.stringify(stores));
-                displayStoresList();
-                renderStores();
-            });
-        }
-
-        // Système de confirmation personnalisé
-        let confirmCallback = null;
-
-        function showConfirm(message, callback) {
-            document.getElementById('confirmMessage').textContent = message;
-            document.getElementById('confirmModal').classList.add('active');
-            confirmCallback = callback;
-        }
-
-        function confirmYes() {
-            document.getElementById('confirmModal').classList.remove('active');
-            if (confirmCallback) {
-                confirmCallback();
-                confirmCallback = null;
-            }
-        }
-
-        function confirmNo() {
-            document.getElementById('confirmModal').classList.remove('active');
-            confirmCallback = null;
-        }
-
-        function addNewStore() {
-            const name = document.getElementById('newStoreName').value.trim();
-            const emoji = document.getElementById('newStoreEmoji').value;
-
-            if (!name) {
-                alert('Veuillez entrer un nom de magasin');
-                return;
-            }
-
-            const id = 'store_' + Date.now();
-            stores.push({
-                id,
-                name,
-                emoji: emoji,
-                enabled: true
-            });
-
-            localStorage.setItem('custom-stores', JSON.stringify(stores));
-            
-            document.getElementById('newStoreName').value = '';
-            document.getElementById('newStoreEmoji').selectedIndex = 0;
-            
-            displayStoresList();
-            renderStores();
-        }
-
-        // ============ GESTION DES MAGASINS - FIN ============
-
-        function initStores() {
-            const savedStores = localStorage.getItem('custom-stores');
-            if (savedStores) {
-                stores = JSON.parse(savedStores);
-            } else {
-                stores = [
-                    { id: 'auchan', name: 'Auchan Plaisir', emoji: '🔴', enabled: true },
-                    { id: 'leclerc', name: 'Leclerc Bois D\'Arcy', emoji: '🔵', enabled: true }
-                ];
-            }
-            renderStores();
-        }
-
-        // ============ DÉMARRAGE DE L'APPLICATION ============
-        // Appeler init() APRÈS que toutes les fonctions soient définies
-        init();
-
-        // ============ BLOQUER LE PULL-TO-REFRESH ============
-        // Désactiver complètement le pull-to-refresh sur mobile
-        let touchStartY = 0;
-        
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: false });
-        
-        document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            const touchDelta = touchY - touchStartY;
-            
-            // Si on est en haut de la page et qu'on tire vers le bas
-            if (window.scrollY === 0 && touchDelta > 0) {
-                e.preventDefault(); // Bloquer le pull-to-refresh
-            }
-        }, { passive: false });
-        
-        // Bloquer aussi l'overscroll
-        document.body.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && e.touches[0].clientY > touchStartY) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-    </script>
+    <button class="fab" id="fab"><b>+</b> Article</button>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span></span><button></button></div>
+
+<!-- Promo -->
+<dialog class="sheet" id="promoSheet" aria-labelledby="promoTitle">
+  <div class="sh-head"><h2 id="promoTitle">Promo</h2><button class="close" data-close aria-label="Fermer">✕</button></div>
+  <div class="sh-body">
+    <div class="section-title">Raccourcis</div>
+    <div class="chips" id="presets"></div>
+    <label class="field">Type d'offre
+      <select id="promoType">
+        <option value="none">Aucune promo</option>
+        <option value="nth">Le Nᵉ à −X % (ex. 2ᵉ à −50 %)</option>
+        <option value="free">N achetés + M offerts (ex. 2+1)</option>
+        <option value="lot">Lot : N pour X € (ex. 3 pour 5 €)</option>
+        <option value="pct">Remise immédiate en %</option>
+        <option value="eur">Remise immédiate en € par article</option>
+        <option value="cagp">Cagnotte en % (Waaoh, Ticket Leclerc…)</option>
+        <option value="cage">Cagnotte en € par article</option>
+      </select>
+    </label>
+    <div class="fields" id="promoFields"></div>
+    <div class="preview" id="promoPreview"></div>
+    <div class="btns">
+      <button class="btn" id="promoRemove">Retirer</button>
+      <button class="btn primary" id="promoApply">Appliquer</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Menu -->
+<dialog class="sheet" id="menuSheet" aria-labelledby="menuTitle">
+  <div class="sh-head"><h2 id="menuTitle">Menu</h2><button class="close" data-close aria-label="Fermer">✕</button></div>
+  <div class="sh-body">
+    <div class="menu-list">
+      <button class="menu-item" id="mSave"><span class="ic">💾</span><span>Enregistrer dans l'historique<small>Garde une copie des listes de tous les magasins</small></span></button>
+      <button class="menu-item" id="mHist"><span class="ic">📋</span><span>Historique<small id="mHistCount"></small></span></button>
+      <button class="menu-item" id="mStores"><span class="ic">🏪</span><span>Magasins<small>Ajouter, renommer, masquer</small></span></button>
+      <button class="menu-item" id="mExport"><span class="ic">📤</span><span>Exporter une sauvegarde<small>Fichier .json à garder au chaud</small></span></button>
+      <button class="menu-item" id="mImport"><span class="ic">📥</span><span>Importer une sauvegarde<small>Accepte aussi les sauvegardes de l'ancienne version</small></span></button>
+      <button class="menu-item" id="mInstall" hidden><span class="ic">📱</span><span>Installer l'application</span></button>
+      <button class="menu-item" id="mUpdate"><span class="ic">🔄</span><span>Rechercher une mise à jour</span></button>
+    </div>
+    <div class="section-title">Thème</div>
+    <div class="seg" id="themeSeg">
+      <button data-theme="auto">Auto</button><button data-theme="light">Clair</button><button data-theme="dark">Sombre</button>
+    </div>
+    <p class="version" id="versionLine"></p>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+</dialog>
+
+<!-- Magasins -->
+<dialog class="sheet" id="storesSheet" aria-labelledby="storesTitle">
+  <div class="sh-head"><h2 id="storesTitle">Magasins</h2><button class="close" data-close aria-label="Fermer">✕</button></div>
+  <div class="sh-body">
+    <p class="sub">Touchez la couleur pour la changer. L'interrupteur masque un magasin sans effacer sa liste.</p>
+    <div id="storesList" style="display:grid;gap:10px"></div>
+    <div class="section-title">Ajouter un magasin</div>
+    <div style="display:flex;gap:8px">
+      <label class="field" style="flex:1"><span class="sr" hidden>Nom</span><input type="text" id="newStore" placeholder="Ex. Carrefour Market" enterkeyhint="done"></label>
+      <button class="btn primary" id="addStore" style="flex:0 0 auto;padding:0 18px;height:46px">Ajouter</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Historique -->
+<dialog class="sheet" id="histSheet" aria-labelledby="histTitle">
+  <div class="sh-head"><h2 id="histTitle">Historique</h2><button class="close" data-close aria-label="Fermer">✕</button></div>
+  <div class="sh-body" id="histBody"></div>
+</dialog>
+
+<!-- Confirmation -->
+<dialog class="sheet" id="confirmSheet" aria-labelledby="confirmMsg">
+  <div class="sh-body" style="padding-top:20px">
+    <p id="confirmMsg" style="font-size:17px"></p>
+    <div class="btns"><button class="btn" id="confirmNo">Annuler</button><button class="btn danger" id="confirmYes">Confirmer</button></div>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const APP_VERSION = '2.0.0';
+const LS_KEY = 'cp2-state';
+const PALETTE = ['#E03E2D', '#2F6BDE', '#18935A', '#E09B12', '#E2661B', '#8A4AD4', '#8A5A32', '#3B4358', '#D23C78', '#0B95A3'];
+const LEGACY_EMOJI = { '🔴':'#E03E2D','🔵':'#2F6BDE','🟢':'#18935A','🟡':'#E09B12','🟠':'#E2661B','🟣':'#8A4AD4','🟤':'#8A5A32','⚫':'#3B4358','⚪':'#7F8799','🔶':'#E2661B','🔷':'#2F6BDE','💙':'#2F6BDE','💚':'#18935A','💛':'#E09B12','🧡':'#E2661B','💜':'#8A4AD4','🏪':'#2F6BDE','🛒':'#E03E2D','🏬':'#8A4AD4','🏢':'#3B4358' };
+
+/* ============ Utilitaires ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-5);
+const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+const money = c => EUR.format((c || 0) / 100);
+function num(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const n = parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+}
+const int = (v, d = 0) => { const n = Math.floor(num(v)); return n > 0 ? n : d; };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, num(v)));
+const toCents = v => Math.round(num(v) * 100);
+const frNum = n => String(n).replace('.', ',');
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (k === 'style') e.style.cssText = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid.nodeType ? kid : String(kid));
+  return e;
+}
+
+/* ============ Moteur de calcul (tout en centimes) ============ */
+// Une promo par ligne :
+//  none | pct {x}            remise immédiate x %
+//       | eur {x}            remise immédiate x € par article
+//       | nth {n, x}         le n-ième à −x %   (2ᵉ à −50 % = n2 x50, 3ᵉ offert = n3 x100)
+//       | free {n, m}        n achetés + m offerts (2+1, 1+1…)
+//       | lot {n, x}         n articles pour x €
+//       | cagp {x} / cage {x}  cagnotte (payé plein pot en caisse, crédité sur la carte)
+function lineCalc(item) {
+  const unit = toCents(item.price);
+  const qty = Math.max(0, Math.floor(num(item.qty)));
+  const base = unit * qty;
+  const p = item.promo || { type: 'none' };
+  let pay = base, cag = 0;
+  switch (p.type) {
+    case 'pct': pay = Math.round(base * (1 - clamp(p.x, 0, 100) / 100)); break;
+    case 'eur': pay = Math.max(0, base - toCents(p.x) * qty); break;
+    case 'nth': {
+      const n = Math.max(2, int(p.n, 2));
+      pay = base - Math.floor(qty / n) * Math.round(unit * clamp(p.x, 0, 100) / 100);
+      break;
+    }
+    case 'free': {
+      const n = int(p.n, 1), m = int(p.m, 1);
+      pay = base - Math.floor(qty / (n + m)) * m * unit;
+      break;
+    }
+    case 'lot': {
+      const n = int(p.n, 1), lp = toCents(p.x);
+      if (lp > 0) pay = Math.min(base, Math.floor(qty / n) * lp + (qty % n) * unit);
+      break;
+    }
+    case 'cagp': cag = Math.round(base * clamp(p.x, 0, 100) / 100); break;
+    case 'cage': cag = Math.min(base, toCents(p.x) * qty); break;
+  }
+  return { unit, qty, base, pay, saved: base - pay, cag };
+}
+function groupSize(p) {
+  if (!p) return 0;
+  if (p.type === 'nth') return Math.max(2, int(p.n, 2));
+  if (p.type === 'free') return int(p.n, 1) + int(p.m, 1);
+  if (p.type === 'lot') return int(p.n, 1);
+  return 0;
+}
+// « Encore 1 et l'offre s'applique » : combien en ajouter, et ce que ça coûte vraiment
+function nextHint(item) {
+  const g = groupSize(item.promo);
+  const c = lineCalc(item);
+  if (g < 2 || c.unit === 0) return null;
+  const r = c.qty % g;
+  if (r === 0) return null;
+  const k = g - r;
+  const extra = lineCalc({ ...item, qty: c.qty + k }).pay - c.pay;
+  if (extra >= k * c.unit) return null;
+  return { k, extra };
+}
+function promoLabel(p) {
+  if (!p || p.type === 'none') return '';
+  const x = num(p.x);
+  switch (p.type) {
+    case 'pct': return `−${frNum(x)} %`;
+    case 'eur': return `−${money(toCents(x))} /article`;
+    case 'nth': { const n = Math.max(2, int(p.n, 2)); return x >= 100 ? `${n}ᵉ offert` : `${n}ᵉ à −${frNum(x)} %`; }
+    case 'free': return `${int(p.n, 1)} + ${int(p.m, 1)} offert${int(p.m, 1) > 1 ? 's' : ''}`;
+    case 'lot': return `${int(p.n, 1)} pour ${money(toCents(x))}`;
+    case 'cagp': return `${frNum(x)} % cagnottés`;
+    case 'cage': return `${money(toCents(x))} cagnotté /article`;
+  }
+  return '';
+}
+function totalsFor(storeId) {
+  const t = { base: 0, pay: 0, saved: 0, cag: 0, count: 0 };
+  for (const it of state.items[storeId] || []) {
+    const c = lineCalc(it);
+    t.base += c.base; t.pay += c.pay; t.saved += c.saved; t.cag += c.cag; t.count += c.qty;
+  }
+  return t;
+}
+
+/* ============ État & sauvegarde ============ */
+function defaultState() {
+  return {
+    v: 2,
+    stores: [
+      { id: 'auchan', name: 'Auchan Plaisir', color: '#E03E2D', enabled: true },
+      { id: 'leclerc', name: "Leclerc Bois d'Arcy", color: '#2F6BDE', enabled: true }
+    ],
+    items: { auchan: [], leclerc: [] },
+    active: 'auchan', theme: 'auto', history: []
+  };
+}
+function normalize(s) {
+  const d = defaultState();
+  s = Object.assign({}, d, s || {});
+  if (!Array.isArray(s.stores) || !s.stores.length) s.stores = d.stores;
+  s.stores = s.stores.map((st, i) => ({ id: String(st.id || uid()), name: String(st.name || 'Magasin'), color: st.color || PALETTE[i % PALETTE.length], enabled: st.enabled !== false }));
+  if (!s.items || typeof s.items !== 'object') s.items = {};
+  for (const st of s.stores) {
+    s.items[st.id] = (Array.isArray(s.items[st.id]) ? s.items[st.id] : []).map(it => ({
+      id: it.id || uid(), name: String(it.name ?? ''), price: String(it.price ?? ''),
+      qty: Math.max(0, Math.floor(num(it.qty))), promo: it.promo && it.promo.type ? it.promo : { type: 'none' }
+    }));
+  }
+  if (!Array.isArray(s.history)) s.history = [];
+  if (!['auto', 'light', 'dark'].includes(s.theme)) s.theme = 'auto';
+  if (!s.stores.some(x => x.id === s.active && x.enabled)) s.active = (s.stores.find(x => x.enabled) || s.stores[0]).id;
+  return s;
+}
+
+// Migration depuis la v1 (clés localStorage ou fichier d'export v1)
+const stripEmoji = t => String(t || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+function legacyRow(r) {
+  if (!r) return null;
+  const off = String(r.offre || '').trim().toUpperCase().replace(/\s/g, '');
+  let promo = { type: 'none' }, m;
+  if ((m = off.match(/^1\+1@(\d+)/))) promo = { type: 'nth', n: 2, x: +m[1] };
+  else if ((m = off.match(/^(\d+)\+(\d+)$/))) promo = { type: 'free', n: +m[1], m: +m[2] };
+  else if (num(r.red_pct) > 0) promo = { type: 'pct', x: num(r.red_pct) };
+  else if (num(r.red_euro) > 0) promo = { type: 'eur', x: num(r.red_euro) };
+  const rawQ = String(r.qte ?? '').trim();
+  return {
+    id: uid(), name: String(r.article || ''),
+    price: r.prix === '' || r.prix == null ? '' : frNum(r.prix),
+    qty: rawQ === '' ? 1 : Math.max(0, Math.floor(num(rawQ))), promo
+  };
+}
+function migrateLegacy(get) {
+  const parse = k => { try { const v = get(k); return v ? JSON.parse(v) : null; } catch { return null; } };
+  const data = parse('comparateur-data'), hist = parse('shopping-history'), cs = parse('custom-stores');
+  if (!data && !hist && !cs) return null;
+  const s = defaultState();
+  const oldStores = Array.isArray(cs) && cs.length ? cs : [
+    { id: 'auchan', name: 'Auchan Plaisir', emoji: '🔴', enabled: true },
+    { id: 'leclerc', name: "Leclerc Bois D'Arcy", emoji: '🔵', enabled: true }];
+  s.stores = oldStores.map((o, i) => ({
+    id: String(o.id), name: stripEmoji(get(`${o.id}-title`)) || o.name || 'Magasin',
+    color: LEGACY_EMOJI[o.emoji] || PALETTE[i % PALETTE.length], enabled: o.enabled !== false
+  }));
+  s.items = {};
+  s.stores.forEach(st => { s.items[st.id] = []; });
+  if (data) for (const [sid, rows] of Object.entries(data)) {
+    if (s.items[sid]) s.items[sid] = (rows || []).map(legacyRow).filter(it => it && (it.name || it.price));
+  }
+  if (Array.isArray(hist)) s.history = hist.map(h => ({
+    id: uid(), ts: Date.parse(h.timestamp) || Date.now(),
+    stores: Object.entries(h.data || {}).map(([sid, rows]) => {
+      const st = s.stores.find(x => x.id === sid);
+      return { id: sid, name: st ? st.name : sid, color: st ? st.color : '#7F8799', items: (rows || []).map(legacyRow).filter(Boolean) };
+    }).filter(x => x.items.length)
+  }));
+  if (get('darkMode') === 'true') s.theme = 'dark';
+  return normalize(s);
+}
+
+function load() {
+  try { const raw = localStorage.getItem(LS_KEY); if (raw) return normalize(JSON.parse(raw)); } catch (e) { console.error(e); }
+  try { const m = migrateLegacy(k => localStorage.getItem(k)); if (m) return m; } catch (e) { console.error(e); }
+  return normalize(defaultState());
+}
+let state = load();
+let saveTimer = null;
+function save() { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 250); }
+function flush() {
+  clearTimeout(saveTimer);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  catch { toast("Impossible d'enregistrer : le stockage du navigateur est plein ou bloqué"); }
+}
+// Sur mobile, beforeunload n'est pas fiable : on sauve quand l'app passe en arrière-plan
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+window.addEventListener('pagehide', flush);
+flush(); // écrit tout de suite le résultat d'une éventuelle migration
+
+/* ============ Rendu ============ */
+const enabledStores = () => state.stores.filter(s => s.enabled);
+const activeStore = () => state.stores.find(s => s.id === state.active) || enabledStores()[0];
+
+function applyTheme() {
+  document.documentElement.dataset.theme = state.theme;
+  document.querySelectorAll('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === state.theme));
+}
+
+function renderTabs() {
+  const tabs = $('#tabs');
+  tabs.replaceChildren(...enabledStores().map(st => {
+    const t = totalsFor(st.id);
+    return el('button', {
+      class: 'tab', role: 'tab', 'aria-selected': String(st.id === state.active), 'data-id': st.id,
+      style: `--store:${st.color}`,
+      onclick: () => { state.active = st.id; save(); render(); }
+    },
+      el('span', { class: 'tab-name' }, el('span', { class: 'dot' }), st.name),
+      el('span', { class: 'tab-total num' }, money(t.pay)));
+  }));
+  const sel = tabs.querySelector('[aria-selected="true"]');
+  if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function itemCard(item) {
+  const card = el('article', { class: 'item', 'data-id': item.id });
+  const nameIn = el('input', { class: 'name', type: 'text', placeholder: 'Article', value: item.name, enterkeyhint: 'next', 'aria-label': 'Article', autocomplete: 'off' });
+  const priceIn = el('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00', value: item.price, enterkeyhint: 'next', 'aria-label': 'Prix unitaire' });
+  const qtyIn = el('input', { type: 'text', inputmode: 'numeric', value: String(item.qty), 'aria-label': 'Quantité', enterkeyhint: 'done' });
+  const changed = () => { updateCard(card, item); renderTotals(); save(); };
+
+  nameIn.addEventListener('input', () => { item.name = nameIn.value; save(); });
+  nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); priceIn.focus(); } });
+  priceIn.addEventListener('input', () => { item.price = priceIn.value.replace(/[^\d.,]/g, ''); if (priceIn.value !== item.price) priceIn.value = item.price; changed(); });
+  priceIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
+  qtyIn.addEventListener('input', () => { item.qty = Math.max(0, Math.floor(num(qtyIn.value))); changed(); });
+  qtyIn.addEventListener('blur', () => { qtyIn.value = String(item.qty); });
+  qtyIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
+  [priceIn, qtyIn].forEach(i => i.addEventListener('focus', () => i.select()));
+  const step = d => { item.qty = Math.max(0, item.qty + d); qtyIn.value = String(item.qty); changed(); };
+
+  card.append(
+    el('div', { class: 'r1' }, nameIn,
+      el('button', { class: 'del', 'aria-label': 'Supprimer l\'article', onclick: () => removeItem(item.id) }, '✕')),
+    el('div', { class: 'r2' },
+      el('label', { class: 'price' }, priceIn, el('span', {}, '€')),
+      el('div', { class: 'qty' },
+        el('button', { 'aria-label': 'Moins', onclick: () => step(-1) }, '−'), qtyIn,
+        el('button', { 'aria-label': 'Plus', onclick: () => step(1) }, '+')),
+      el('div', { class: 'lt' }, el('span', { class: 'lt-base' }), el('span', { class: 'lt-pay num' }))),
+    el('div', { class: 'r3' },
+      el('button', { class: 'tag', onclick: () => openPromo(item) }),
+      el('span', { class: 'cag' }),
+      el('span', { class: 'hint' }))
+  );
+  updateCard(card, item);
+  return card;
+}
+
+function updateCard(card, item) {
+  const c = lineCalc(item);
+  $('.lt-pay', card).textContent = money(c.pay);
+  $('.lt-base', card).textContent = c.saved > 0 ? money(c.base) : '';
+  const tag = $('.tag', card);
+  const label = promoLabel(item.promo);
+  tag.textContent = label || '+ Promo';
+  tag.classList.toggle('off', !label);
+  $('.cag', card).textContent = c.cag > 0 ? `+${money(c.cag)} sur la carte` : '';
+  const hint = $('.hint', card);
+  const h = nextHint(item);
+  if (h) {
+    hint.className = 'hint';
+    hint.textContent = h.extra === 0
+      ? `Prends-en ${h.k} de plus : ${h.k > 1 ? 'ils sont offerts' : 'il est offert'}`
+      : `Encore ${h.k} → seulement +${money(h.extra)}`;
+  } else hint.textContent = '';
+}
+
+function renderList() {
+  const st = activeStore();
+  const items = state.items[st.id];
+  $('#list').replaceChildren(...items.map(itemCard));
+  $('#empty').hidden = items.length > 0;
+  $('#rLabel').textContent = `À payer chez ${st.name}`;
+  $('#clearBtn').hidden = items.length === 0;
+  document.documentElement.style.setProperty('--store', st.color);
+}
+
+function renderTotals() {
+  const st = activeStore();
+  const t = totalsFor(st.id);
+  $('#rBase').textContent = money(t.base);
+  $('#rSaved').textContent = money(t.saved);
+  $('#rCag').textContent = money(t.cag);
+  $('#rCagRow').hidden = t.cag === 0;
+  $('#rPay').textContent = money(t.pay);
+  document.querySelectorAll('#tabs .tab').forEach(tab => {
+    $('.tab-total', tab).textContent = money(totalsFor(tab.dataset.id).pay);
+  });
+  const all = enabledStores().map(s => totalsFor(s.id));
+  const pay = all.reduce((a, x) => a + x.pay, 0);
+  const saved = all.reduce((a, x) => a + x.saved, 0);
+  const cag = all.reduce((a, x) => a + x.cag, 0);
+  $('#btLabel').textContent = all.length > 1 ? `Total des ${all.length} magasins` : 'Total';
+  $('#btTotal').textContent = money(pay);
+  const bits = [];
+  if (saved > 0) bits.push(`${money(saved)} économisés`);
+  if (cag > 0) bits.push(`${money(cag)} cagnottés`);
+  $('#btSave').textContent = bits.join(' + ');
+}
+
+function render() { renderTabs(); renderList(); renderTotals(); }
+
+/* ============ Actions articles ============ */
+function addItem() {
+  const st = activeStore();
+  const item = { id: uid(), name: '', price: '', qty: 1, promo: { type: 'none' } };
+  state.items[st.id].push(item);
+  save();
+  const card = itemCard(item);
+  $('#list').append(card);
+  $('#empty').hidden = true;
+  $('#clearBtn').hidden = false;
+  renderTotals();
+  $('.name', card).focus();
+  card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function removeItem(id) {
+  const st = activeStore();
+  const list = state.items[st.id];
+  const idx = list.findIndex(i => i.id === id);
+  if (idx < 0) return;
+  const [removed] = list.splice(idx, 1);
+  save(); renderList(); renderTotals();
+  toast(`${removed.name || 'Article'} supprimé`, 'Annuler', () => {
+    list.splice(Math.min(idx, list.length), 0, removed); save(); renderList(); renderTotals();
+  });
+}
+function clearStore() {
+  const st = activeStore();
+  const backup = state.items[st.id];
+  if (!backup.length) return;
+  state.items[st.id] = [];
+  save(); renderList(); renderTotals();
+  toast(`Liste ${st.name} vidée`, 'Annuler', () => { state.items[st.id] = backup; save(); renderList(); renderTotals(); });
+}
+
+/* ============ Feuille Promo ============ */
+const PRESETS = [
+  { label: '2ᵉ à −50 %', p: { type: 'nth', n: 2, x: 50 } },
+  { label: '2ᵉ à −70 %', p: { type: 'nth', n: 2, x: 70 } },
+  { label: '1 + 1 offert', p: { type: 'free', n: 1, m: 1 } },
+  { label: '2 + 1 offert', p: { type: 'free', n: 2, m: 1 } },
+  { label: '3 + 1 offert', p: { type: 'free', n: 3, m: 1 } },
+  { label: '−30 %', p: { type: 'pct', x: 30 } },
+  { label: '34 % cagnottés', p: { type: 'cagp', x: 34 } }
+];
+const FIELD_DEFS = {
+  pct:  [['x', 'Remise (%)', 20, 'decimal']],
+  eur:  [['x', 'Remise par article (€)', '0,50', 'decimal']],
+  nth:  [['n', 'Le combientième ?', 2, 'numeric'], ['x', 'Remise sur celui-là (%)', 50, 'decimal']],
+  free: [['n', 'Achetés', 2, 'numeric'], ['m', 'Offerts', 1, 'numeric']],
+  lot:  [['n', 'Nombre d\'articles', 3, 'numeric'], ['x', 'Prix du lot (€)', '5,00', 'decimal']],
+  cagp: [['x', 'Cagnotté (%)', 34, 'decimal']],
+  cage: [['x', 'Cagnotté par article (€)', '1,00', 'decimal']]
+};
+let promoItem = null, draft = null;
+function openPromo(item) {
+  promoItem = item;
+  draft = JSON.parse(JSON.stringify(item.promo || { type: 'none' }));
+  $('#promoTitle').textContent = item.name ? `Promo · ${item.name}` : 'Promo';
+  $('#presets').replaceChildren(...PRESETS.map(pr => el('button', {
+    class: 'chip', onclick: () => { draft = { ...pr.p }; drawPromo(); }
+  }, pr.label)));
+  drawPromo();
+  $('#promoSheet').showModal();
+}
+function drawPromo() {
+  $('#promoType').value = draft.type;
+  const defs = FIELD_DEFS[draft.type] || [];
+  for (const [k, , def] of defs) if (draft[k] === undefined || draft[k] === '') draft[k] = typeof def === 'string' ? num(def) : def;
+  $('#promoFields').replaceChildren(...defs.map(([k, label, , mode]) => {
+    const inp = el('input', { type: 'text', inputmode: mode, value: frNum(draft[k]) });
+    inp.addEventListener('input', () => { draft[k] = num(inp.value); drawPreview(); });
+    inp.addEventListener('focus', () => inp.select());
+    return el('label', { class: 'field' }, label, inp);
+  }));
+  $('#promoFields').hidden = !defs.length;
+  document.querySelectorAll('#presets .chip').forEach((c, i) => c.setAttribute('aria-pressed', String(JSON.stringify(PRESETS[i].p) === JSON.stringify(draft))));
+  drawPreview();
+}
+function drawPreview() {
+  const box = $('#promoPreview');
+  const g = groupSize(draft);
+  const qty = Math.max(promoItem.qty, g, 1);
+  const test = { ...promoItem, qty, promo: draft };
+  const c = lineCalc(test);
+  if (!c.unit) { box.textContent = 'Saisis le prix de l\'article pour voir le calcul.'; return; }
+  box.replaceChildren(
+    `Pour ${qty} article${qty > 1 ? 's' : ''} à ${money(c.unit)} : `,
+    el('span', { class: 'num' }, money(c.pay)),
+    c.saved > 0 ? ` au lieu de ${money(c.base)} (−${money(c.saved)})` : '',
+    c.cag > 0 ? ` · ${money(c.cag)} reviennent sur ta carte` : '',
+    qty !== promoItem.qty ? el('div', { class: 'sub', style: 'margin-top:4px' }, `Tu en as ${promoItem.qty} dans la liste.`) : ''
+  );
+}
+$('#promoType').addEventListener('change', e => { draft = { type: e.target.value }; drawPromo(); });
+$('#promoApply').addEventListener('click', () => { promoItem.promo = draft; closePromo(); });
+$('#promoRemove').addEventListener('click', () => { promoItem.promo = { type: 'none' }; closePromo(); });
+function closePromo() {
+  save();
+  const card = document.querySelector(`.item[data-id="${promoItem.id}"]`);
+  if (card) updateCard(card, promoItem);
+  renderTotals();
+  $('#promoSheet').close();
+}
+
+/* ============ Menu ============ */
+$('#menuBtn').addEventListener('click', () => {
+  $('#mHistCount').textContent = state.history.length ? `${state.history.length} liste${state.history.length > 1 ? 's' : ''} enregistrée${state.history.length > 1 ? 's' : ''}` : 'Aucune liste enregistrée';
+  $('#versionLine').textContent = `Version ${APP_VERSION}`;
+  applyTheme();
+  $('#menuSheet').showModal();
+});
+$('#themeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.theme = b.dataset.theme; applyTheme(); save();
+});
+$('#mSave').addEventListener('click', () => {
+  const stores = enabledStores().map(st => ({
+    id: st.id, name: st.name, color: st.color,
+    items: state.items[st.id].filter(i => i.name || i.price).map(i => JSON.parse(JSON.stringify(i)))
+  })).filter(s => s.items.length);
+  if (!stores.length) { toast('Rien à enregistrer : les listes sont vides'); return; }
+  state.history.unshift({ id: uid(), ts: Date.now(), stores });
+  state.history = state.history.slice(0, 60);
+  flush();
+  $('#menuSheet').close();
+  toast('Liste enregistrée dans l\'historique');
+});
+$('#mHist').addEventListener('click', () => { $('#menuSheet').close(); showHistory(); $('#histSheet').showModal(); });
+$('#mStores').addEventListener('click', () => { $('#menuSheet').close(); drawStores(); $('#storesSheet').showModal(); });
+$('#mExport').addEventListener('click', exportData);
+$('#mImport').addEventListener('click', () => $('#importFile').click());
+$('#importFile').addEventListener('change', importData);
+
+/* ============ Historique ============ */
+const dateFR = ts => new Date(ts).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const snapTotal = snap => snap.stores.reduce((a, s) => a + s.items.reduce((b, i) => b + lineCalc(i).pay, 0), 0);
+function showHistory() {
+  const body = $('#histBody');
+  $('#histTitle').textContent = 'Historique';
+  if (!state.history.length) {
+    body.replaceChildren(el('p', { class: 'empty' }, 'Aucune liste enregistrée. Utilise « Enregistrer dans l\'historique » dans le menu à la fin de tes courses.'));
+    return;
+  }
+  body.replaceChildren(el('div', { class: 'hist' }, state.history.map(h => el('button', { class: 'hist-item', onclick: () => showSnap(h) },
+    el('span', {}, el('strong', {}, dateFR(h.ts)), el('span', { class: 'hist-stores', style: 'display:block' }, h.stores.map(s => s.name).join(', '))),
+    el('span', { class: 'num' }, money(snapTotal(h)))))));
+}
+function showSnap(h) {
+  const body = $('#histBody');
+  $('#histTitle').textContent = dateFR(h.ts);
+  const parts = [el('button', { class: 'link-btn', style: 'justify-self:start', onclick: showHistory }, '← Toutes les listes')];
+  for (const s of h.stores) {
+    const tot = s.items.reduce((a, i) => a + lineCalc(i).pay, 0);
+    parts.push(el('div', {},
+      el('h3', { style: `display:flex;align-items:center;gap:8px;margin-bottom:4px;--store:${s.color}` }, el('span', { class: 'dot' }), s.name),
+      el('table', { class: 'hist-table' }, el('tbody', {}, s.items.map(i => {
+        const c = lineCalc(i); const pl = promoLabel(i.promo);
+        return el('tr', {},
+          el('td', {}, i.name || 'Sans nom', el('span', { class: 'sub' }, `${i.qty} × ${money(c.unit)}${pl ? ' · ' + pl : ''}`)),
+          el('td', {}, money(c.pay)));
+      }), el('tr', {}, el('td', {}, el('strong', {}, 'Total')), el('td', {}, money(tot)))))));
+  }
+  parts.push(el('div', { class: 'btns' },
+    el('button', { class: 'btn', onclick: async () => {
+      if (!await ask('Supprimer cette liste de l\'historique ?', 'Supprimer')) return;
+      state.history = state.history.filter(x => x.id !== h.id); flush(); showHistory();
+    } }, 'Supprimer'),
+    el('button', { class: 'btn primary', onclick: async () => {
+      if (!await ask('Remplacer tes listes actuelles par celle-ci ? Les magasins concernés seront écrasés.', 'Remplacer')) return;
+      restoreSnap(h);
+    } }, 'Réutiliser cette liste')));
+  body.replaceChildren(...parts);
+}
+function restoreSnap(h) {
+  for (const s of h.stores) {
+    let st = state.stores.find(x => x.id === s.id);
+    if (!st) { st = { id: s.id, name: s.name, color: s.color, enabled: true }; state.stores.push(st); }
+    st.enabled = true;
+    state.items[st.id] = s.items.map(i => ({ ...JSON.parse(JSON.stringify(i)), id: uid() }));
+  }
+  state.active = h.stores[0].id;
+  flush(); $('#histSheet').close(); render();
+  toast('Liste rechargée');
+}
+
+/* ============ Magasins ============ */
+function drawStores() {
+  $('#storesList').replaceChildren(...state.stores.map(st => {
+    const name = el('input', { type: 'text', value: st.name, 'aria-label': 'Nom du magasin' });
+    name.addEventListener('input', () => { st.name = name.value.trim() || 'Magasin'; save(); render(); });
+    const sw = el('input', { type: 'checkbox', 'aria-label': 'Afficher ce magasin' });
+    sw.checked = st.enabled;
+    sw.addEventListener('change', () => {
+      if (!sw.checked && enabledStores().length === 1) { sw.checked = true; toast('Garde au moins un magasin affiché'); return; }
+      st.enabled = sw.checked;
+      if (!st.enabled && state.active === st.id) state.active = enabledStores()[0].id;
+      save(); render();
+    });
+    return el('div', { class: 'store-row', style: `--store:${st.color}` },
+      el('button', { class: 'swatch', 'aria-label': 'Changer la couleur', onclick: () => {
+        st.color = PALETTE[(PALETTE.indexOf(st.color) + 1) % PALETTE.length]; save(); drawStores(); render();
+      } }),
+      name,
+      el('label', { class: 'switch' }, sw, el('span')),
+      el('button', { class: 'del', 'aria-label': `Supprimer ${st.name}`, onclick: async () => {
+        if (state.stores.length === 1) { toast('Il faut au moins un magasin'); return; }
+        const n = state.items[st.id].length;
+        if (!await ask(`Supprimer ${st.name}${n ? ` et ses ${n} article${n > 1 ? 's' : ''}` : ''} ?`, 'Supprimer')) return;
+        state.stores = state.stores.filter(x => x.id !== st.id);
+        delete state.items[st.id];
+        if (!enabledStores().length) state.stores[0].enabled = true;
+        if (state.active === st.id) state.active = enabledStores()[0].id;
+        save(); drawStores(); render();
+      } }, '🗑'));
+  }));
+}
+function addStore() {
+  const inp = $('#newStore');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  const used = state.stores.map(s => s.color);
+  const color = PALETTE.find(c => !used.includes(c)) || PALETTE[state.stores.length % PALETTE.length];
+  const id = 'store_' + uid();
+  state.stores.push({ id, name, color, enabled: true });
+  state.items[id] = [];
+  inp.value = '';
+  save(); drawStores(); render();
+}
+$('#addStore').addEventListener('click', addStore);
+$('#newStore').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addStore(); } });
+
+/* ============ Import / Export ============ */
+function exportData() {
+  flush();
+  const blob = new Blob([JSON.stringify({ app: 'comparateur-prix', version: APP_VERSION, exportDate: new Date().toISOString(), state }, null, 2)], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `courses-sauvegarde-${new Date().toISOString().slice(0, 10)}.json` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Sauvegarde téléchargée');
+}
+async function importData(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let next = null;
+  try {
+    const json = JSON.parse(await file.text());
+    if (json.state) next = normalize(json.state);
+    else if (json.data) { // export de la v1
+      const d = json.data, flat = {
+        'comparateur-data': d.currentList, 'shopping-history': d.shoppingHistory,
+        'custom-stores': d.customStores, darkMode: d.darkMode
+      };
+      for (const [k, v] of Object.entries(d.titles || {})) flat[`${k}-title`] = v;
+      next = migrateLegacy(k => flat[k] ?? null);
+    }
+  } catch { /* géré juste en dessous */ }
+  if (!next) { toast('Ce fichier n\'est pas une sauvegarde de l\'app'); return; }
+  $('#menuSheet').close();
+  if (!await ask('Remplacer toutes tes données (listes, magasins, historique) par celles du fichier ?', 'Remplacer')) return;
+  state = next; flush(); applyTheme(); render();
+  toast('Sauvegarde importée');
+}
+
+/* ============ Confirmation & toast ============ */
+function ask(msg, okLabel = 'Confirmer') {
+  return new Promise(resolve => {
+    const d = $('#confirmSheet');
+    $('#confirmMsg').textContent = msg;
+    $('#confirmYes').textContent = okLabel;
+    const done = v => { d.close(); resolve(v); };
+    $('#confirmYes').onclick = () => done(true);
+    $('#confirmNo').onclick = () => done(false);
+    d.oncancel = () => resolve(false);
+    d.showModal();
+  });
+}
+let toastTimer = null;
+function toast(msg, actionLabel = '', action = null) {
+  const t = $('#toast');
+  $('span', t).textContent = msg;
+  const b = $('button', t);
+  b.textContent = actionLabel;
+  b.onclick = () => { t.classList.remove('show'); if (action) action(); };
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), action ? 5000 : 2600);
+}
+
+/* ============ Fermeture des feuilles ============ */
+document.querySelectorAll('dialog.sheet').forEach(d => {
+  d.addEventListener('click', e => {
+    if (e.target.closest('[data-close]')) d.close();
+    else if (e.target === d) { // clic sur le fond
+      const r = d.getBoundingClientRect();
+      if (e.clientY < r.top || e.clientY > r.bottom || e.clientX < r.left || e.clientX > r.right) d.close();
+    }
+  });
+});
+
+/* ============ PWA : installation & mises à jour ============ */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('#mInstall').hidden = false; });
+$('#mInstall').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('#mInstall').hidden = true;
+});
+let swReg = null;
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('service-worker.js').then(r => { swReg = r; }).catch(err => console.warn('SW', err));
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) toast('Nouvelle version installée', 'Recharger', () => { flush(); location.reload(); });
+  });
+}
+$('#mUpdate').addEventListener('click', async () => {
+  $('#menuSheet').close();
+  if (!swReg) { toast('Mises à jour indisponibles ici (ouvre l\'app via son adresse https)'); return; }
+  toast('Recherche…');
+  try {
+    await swReg.update();
+    if (swReg.installing || swReg.waiting) toast('Mise à jour en cours de téléchargement…');
+    else toast(`Tu as la dernière version (${APP_VERSION})`);
+  } catch { toast('Pas de connexion : réessaie plus tard'); }
+});
+
+/* ============ Démarrage ============ */
+$('#addRow').addEventListener('click', addItem);
+$('#fab').addEventListener('click', addItem);
+$('#clearBtn').addEventListener('click', clearStore);
+applyTheme();
+render();
+
+// Exposé pour les tests
+window.__cp = { lineCalc, nextHint, promoLabel, migrateLegacy, legacyRow };
+</script>
 </body>
 </html>
