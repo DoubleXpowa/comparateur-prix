@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.doublexpowa.comparateurprix",
+  "appName": "Comparateur",
+  "webDir": "www",
+  "android": { "backgroundColor": "#ECEEF4" },
+  "plugins": {
+    "SystemBars": { "insetsHandling": "native", "initialViewportFitValueHint": "cover" }
+  }
+}

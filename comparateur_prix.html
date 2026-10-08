@@ -414,6 +414,8 @@ dialog.sheet::backdrop { background: rgb(8 9 18 / .55); }
 <script>
 'use strict';
 const APP_VERSION = '2.0.0';
+// Vrai quand la page tourne dans l'APK Android (Capacitor), faux dans le navigateur
+const IS_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 const LS_KEY = 'cp2-state';
 const PALETTE = ['#E03E2D', '#2F6BDE', '#18935A', '#E09B12', '#E2661B', '#8A4AD4', '#8A5A32', '#3B4358', '#D23C78', '#0B95A3'];
 const LEGACY_EMOJI = { '🔴':'#E03E2D','🔵':'#2F6BDE','🟢':'#18935A','🟡':'#E09B12','🟠':'#E2661B','🟣':'#8A4AD4','🟤':'#8A5A32','⚫':'#3B4358','⚪':'#7F8799','🔶':'#E2661B','🔷':'#2F6BDE','💙':'#2F6BDE','💚':'#18935A','💛':'#E09B12','🧡':'#E2661B','💜':'#8A4AD4','🏪':'#2F6BDE','🛒':'#E03E2D','🏬':'#8A4AD4','🏢':'#3B4358' };
@@ -793,7 +795,7 @@ function openPromo(item) {
     class: 'chip', onclick: () => { draft = { ...pr.p }; drawPromo(); }
   }, pr.label)));
   drawPromo();
-  $('#promoSheet').showModal();
+  openSheet($('#promoSheet'));
 }
 function drawPromo() {
   $('#promoType').value = draft.type;
@@ -838,9 +840,9 @@ function closePromo() {
 /* ============ Menu ============ */
 $('#menuBtn').addEventListener('click', () => {
   $('#mHistCount').textContent = state.history.length ? `${state.history.length} liste${state.history.length > 1 ? 's' : ''} enregistrée${state.history.length > 1 ? 's' : ''}` : 'Aucune liste enregistrée';
-  $('#versionLine').textContent = `Version ${APP_VERSION}`;
+  $('#versionLine').textContent = `Version ${APP_VERSION}${IS_APP ? ' · application Android' : ''}`;
   applyTheme();
-  $('#menuSheet').showModal();
+  openSheet($('#menuSheet'));
 });
 $('#themeSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -858,8 +860,8 @@ $('#mSave').addEventListener('click', () => {
   $('#menuSheet').close();
   toast('Liste enregistrée dans l\'historique');
 });
-$('#mHist').addEventListener('click', () => { $('#menuSheet').close(); showHistory(); $('#histSheet').showModal(); });
-$('#mStores').addEventListener('click', () => { $('#menuSheet').close(); drawStores(); $('#storesSheet').showModal(); });
+$('#mHist').addEventListener('click', () => { $('#menuSheet').close(); showHistory(); openSheet($('#histSheet')); });
+$('#mStores').addEventListener('click', () => { $('#menuSheet').close(); drawStores(); openSheet($('#storesSheet')); });
 $('#mExport').addEventListener('click', exportData);
 $('#mImport').addEventListener('click', () => $('#importFile').click());
 $('#importFile').addEventListener('change', importData);
@@ -963,10 +965,27 @@ $('#addStore').addEventListener('click', addStore);
 $('#newStore').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addStore(); } });
 
 /* ============ Import / Export ============ */
-function exportData() {
+async function exportData() {
   flush();
-  const blob = new Blob([JSON.stringify({ app: 'comparateur-prix', version: APP_VERSION, exportDate: new Date().toISOString(), state }, null, 2)], { type: 'application/json' });
-  const a = el('a', { href: URL.createObjectURL(blob), download: `courses-sauvegarde-${new Date().toISOString().slice(0, 10)}.json` });
+  const json = JSON.stringify({ app: 'comparateur-prix', version: APP_VERSION, exportDate: new Date().toISOString(), state }, null, 2);
+  const fileName = `courses-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+  if (IS_APP) {
+    // Dans l'APK il n'y a pas de dossier Téléchargements : on écrit le fichier puis on ouvre
+    // le menu Partager d'Android (Drive, Fichiers, Messages, mail…)
+    $('#menuSheet').close();
+    try {
+      const cap = window.Capacitor;
+      const { uri } = await cap.nativePromise('Filesystem', 'writeFile', { path: fileName, data: json, directory: 'CACHE', encoding: 'utf8' });
+      await cap.nativePromise('Share', 'share', { title: 'Sauvegarde Comparateur', url: uri, dialogTitle: 'Enregistrer ou envoyer la sauvegarde' });
+    } catch (err) {
+      if (/cancel/i.test(String(err && err.message))) return;
+      try { await navigator.clipboard.writeText(json); toast('Partage impossible : la sauvegarde est copiée dans le presse-papiers'); }
+      catch { toast('Export impossible sur cet appareil'); }
+    }
+    return;
+  }
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: fileName });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   toast('Sauvegarde téléchargée');
@@ -1005,7 +1024,7 @@ function ask(msg, okLabel = 'Confirmer') {
     $('#confirmYes').onclick = () => done(true);
     $('#confirmNo').onclick = () => done(false);
     d.oncancel = () => resolve(false);
-    d.showModal();
+    openSheet(d);
   });
 }
 let toastTimer = null;
@@ -1020,8 +1039,24 @@ function toast(msg, actionLabel = '', action = null) {
   toastTimer = setTimeout(() => t.classList.remove('show'), action ? 5000 : 2600);
 }
 
-/* ============ Fermeture des feuilles ============ */
+/* ============ Ouverture / fermeture des feuilles ============ */
+// Chaque feuille ouverte ajoute une entrée d'historique : le bouton retour Android
+// (ou le geste retour) ferme la feuille au lieu de quitter l'application.
+let ignorePop = false;
+function openSheet(d) {
+  if (d.open) return;
+  d.showModal();
+  history.pushState({ sheet: d.id }, '');
+}
+window.addEventListener('popstate', () => {
+  if (ignorePop) { ignorePop = false; return; }
+  const open = [...document.querySelectorAll('dialog.sheet[open]')].pop();
+  if (open) open.close();
+});
 document.querySelectorAll('dialog.sheet').forEach(d => {
+  d.addEventListener('close', () => {
+    if (history.state && history.state.sheet === d.id) { ignorePop = true; history.back(); }
+  });
   d.addEventListener('click', e => {
     if (e.target.closest('[data-close]')) d.close();
     else if (e.target === d) { // clic sur le fond
@@ -1033,13 +1068,13 @@ document.querySelectorAll('dialog.sheet').forEach(d => {
 
 /* ============ PWA : installation & mises à jour ============ */
 let installEvt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('#mInstall').hidden = false; });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!IS_APP) $('#mInstall').hidden = false; });
 $('#mInstall').addEventListener('click', async () => {
   if (!installEvt) return;
   installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('#mInstall').hidden = true;
 });
 let swReg = null;
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !IS_APP) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('service-worker.js').then(r => { swReg = r; }).catch(err => console.warn('SW', err));
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -1061,6 +1096,7 @@ $('#mUpdate').addEventListener('click', async () => {
 $('#addRow').addEventListener('click', addItem);
 $('#fab').addEventListener('click', addItem);
 $('#clearBtn').addEventListener('click', clearStore);
+if (IS_APP) { $('#mUpdate').hidden = true; $('#mInstall').hidden = true; }
 applyTheme();
 render();
 
